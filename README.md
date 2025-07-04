@@ -10,11 +10,50 @@ This repo is the codebase behind the following Replicate models, which we use at
 
 WhisperX provides fast automatic speech recognition (70x realtime with large-v3) with word-level timestamps and speaker diarization.
 
-Whisper is an ASR model developed by OpenAI, trained on a large dataset of diverse audio. Whilst it does produces highly accurate transcriptions, the corresponding timestamps are at the utterance-level, not per word, and can be inaccurate by several seconds. OpenAI’s whisper does not natively support batching, but WhisperX does.
+Whisper is an ASR model developed by OpenAI, trained on a large dataset of diverse audio. Whilst it does produces highly accurate transcriptions, the corresponding timestamps are at the utterance-level, not per word, and can be inaccurate by several seconds. OpenAI's whisper does not natively support batching, but WhisperX does.
 
 Model used is for transcription is large-v3 from faster-whisper.
 
 For more information about WhisperX, including implementation details, see the [WhisperX github repo](https://github.com/m-bain/whisperX).
+
+## Multi-Chunk Processing
+
+This implementation supports processing multiple audio chunks in parallel, which is useful for transcribing large videos that have been split into smaller segments. 
+
+### Key Features:
+
+- **Parallel Processing**: Multiple audio chunks are processed simultaneously using ThreadPoolExecutor to maximize GPU utilization on H100
+- **Automatic Timestamp Alignment**: Timestamps are automatically adjusted to maintain temporal continuity across chunks
+- **Smart Merging**: Results are merged while preserving the correct temporal order of segments
+- **Language Detection**: Language is detected from the first chunk and applied consistently across all chunks
+- **Error Handling**: Robust error handling for download failures and processing issues
+
+### Input Parameters:
+
+- `audio_urls`: Array of audio file URLs (chunks of one video in temporal order)
+- `chunk_duration_seconds`: Duration of each chunk in seconds (auto-detected if not provided)
+- All other parameters remain the same as the original WhisperX model
+
+### Usage Example:
+
+```python
+# Process multiple chunks of a video
+audio_urls = [
+    "https://example.com/video_chunk_001.mp3",
+    "https://example.com/video_chunk_002.mp3", 
+    "https://example.com/video_chunk_003.mp3"
+]
+
+result = predictor.predict(
+    audio_urls=audio_urls,
+    chunk_duration_seconds=30.0,  # Optional: specify if chunks are uniform
+    language="en",  # Optional: will be auto-detected if not provided
+    align_output=True,
+    debug=True
+)
+```
+
+The output includes merged segments with correct timestamps, total processing time, and chunk count information.
 
 # Citation
 

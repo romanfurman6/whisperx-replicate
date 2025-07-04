@@ -1,0 +1,10 @@
+{
+  "audio_urls": [
+    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts1.mp3",
+    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts2.mp3",
+    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts3.mp3"
+  ],
+  "chunk_duration_seconds": 24.0,
+  "language": "en",
+  "debug": true
+} 

@@ -1,8 +1,9 @@
 build:
-  cuda: "12.1"
+  cuda: "11.8"
   gpu: true
   system_packages:
     - "ffmpeg"
   python_version: "3.11"
   python_requirements: requirements.txt
 predict: "predict.py:Predictor"
+image: "r8.im/romanfurman6/whisperx-multi-chunk"
