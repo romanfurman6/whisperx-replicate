@@ -21,7 +21,7 @@ import urllib.parse
 
 compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
 device = "cuda"
-whisper_arch = "./models/faster-whisper-large-v3"
+whisper_arch = "large-v3"
 
 
 class ChunkResult(BaseModel):
@@ -65,7 +65,7 @@ class Predictor(BasePredictor):
             language_detection_min_prob: float = Input(
                 description="If language is not specified, then the language will be detected recursively on different "
                             "parts of the file until it reaches the given probability",
-                default=0
+                default=0.7
             ),
             language_detection_max_tries: int = Input(
                 description="If language is not specified, then the language will be detected following the logic of "
@@ -78,10 +78,10 @@ class Predictor(BasePredictor):
                 default=None),
             batch_size: int = Input(
                 description="Parallelization of input audio transcription",
-                default=64),
+                default=32),
             temperature: float = Input(
                 description="Temperature to use for sampling",
-                default=0),
+                default=0.2),
             vad_onset: float = Input(
                 description="VAD onset",
                 default=0.500),
@@ -106,7 +106,7 @@ class Predictor(BasePredictor):
                 default=None),
             debug: bool = Input(
                 description="Print out compute/inference times and memory usage information",
-                default=False)
+                default=True)
     ) -> Output:
         start_processing_time = time.time()
         
