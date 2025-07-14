@@ -2,6 +2,7 @@ from cog import BasePredictor, Input, Path, BaseModel
 from typing import Any, List, Dict, Optional, Tuple
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
 
+
 import asyncio
 import aiohttp
 import aiofiles
@@ -14,8 +15,6 @@ import tempfile
 import time
 import torch
 import ffmpeg
-import requests
-import concurrent.futures
 from pathlib import Path as PathlibPath
 import urllib.parse
 
@@ -55,111 +54,123 @@ class Predictor(BasePredictor):
 
     def predict(
             self,
-            audio_urls: List[str] = Input(description="Array of audio file URLs (chunks of one video in temporal order)"),
-            chunk_duration_seconds: Optional[float] = Input(
-                description="Duration of each chunk in seconds (used for timestamp calculation, auto-detected if None)",
-                default=None),
-            language: str = Input(
+            audio_urls: List[str] = Input(
+                description="Array of public audio urls to process"
+            ),
+            total_duration_seconds: float = Input(
+                description="Total duration of the complete audio in seconds"
+            ),
+            chunk_size_seconds: float = Input(
+                description="Duration of each chunk in seconds (used for timestamp calculation). Latest chunk can be shorter, it will be calculated based on the total duration and the number of chunks."
+            ),
+            language: Optional[str] = Input(
                 description="ISO code of the language spoken in the audio, specify None to perform language detection",
-                default=None),
+                default=None
+            ),
             language_detection_min_prob: float = Input(
-                description="If language is not specified, then the language will be detected recursively on different "
-                            "parts of the file until it reaches the given probability",
+                description="Minimum probability for recursive language detection",
                 default=0.7
             ),
             language_detection_max_tries: int = Input(
-                description="If language is not specified, then the language will be detected following the logic of "
-                            "language_detection_min_prob parameter, but will stop after the given max retries. If max "
-                            "retries is reached, the most probable language is kept.",
+                description="Maximum retries for recursive language detection",
                 default=5
             ),
-            initial_prompt: str = Input(
-                description="Optional text to provide as a prompt for the first window",
-                default=None),
+            initial_prompt: Optional[str] = Input(
+                description="Optional text prompt for the first window",
+                default=None
+            ),
             batch_size: int = Input(
                 description="Parallelization of input audio transcription",
-                default=32),
+                default=32
+            ),
             temperature: float = Input(
                 description="Temperature to use for sampling",
-                default=0.2),
+                default=0.2
+            ),
             vad_onset: float = Input(
-                description="VAD onset",
-                default=0.500),
+                description="VAD onset threshold",
+                default=0.500
+            ),
             vad_offset: float = Input(
-                description="VAD offset",
-                default=0.363),
+                description="VAD offset threshold",
+                default=0.363
+            ),
             align_output: bool = Input(
-                description="Aligns whisper output to get accurate word-level timestamps",
-                default=False),
+                description="Whether to align output for word-level timestamps",
+                default=False
+            ),
             diarization: bool = Input(
-                description="Assign speaker ID labels",
-                default=False),
-            huggingface_access_token: str = Input(
-                description="To enable diarization, please enter your HuggingFace token (read). You need to accept "
-                            "the user agreement for the models specified in the README.",
-                default=None),
-            min_speakers: int = Input(
-                description="Minimum number of speakers if diarization is activated (leave blank if unknown)",
-                default=None),
-            max_speakers: int = Input(
-                description="Maximum number of speakers if diarization is activated (leave blank if unknown)",
-                default=None),
+                description="Whether to perform diarization",
+                default=False
+            ),
+            huggingface_access_token: Optional[str] = Input(
+                description="HuggingFace token for diarization",
+                default=None
+            ),
+            min_speakers: Optional[int] = Input(
+                description="Minimum number of speakers if diarization is activated",
+                default=None
+            ),
+            max_speakers: Optional[int] = Input(
+                description="Maximum number of speakers if diarization is activated",
+                default=None
+            ),
             debug: bool = Input(
-                description="Print out compute/inference times and memory usage information",
-                default=True)
+                description="Print debug information",
+                default=True
+            )
     ) -> Output:
         start_processing_time = time.time()
         
         if not audio_urls:
             raise ValueError("audio_urls cannot be empty")
         
-        print(f"Processing {len(audio_urls)} audio chunks...")
+        # Calculate chunk metadata based on total duration and chunk size
+        num_chunks = len(audio_urls)
+        expected_chunk_duration = total_duration_seconds / num_chunks
         
-        # Download all audio files first
-        downloaded_files = asyncio.run(self.download_audio_files(audio_urls))
+        if debug:
+            print(f"Processing {num_chunks} audio URLs")
+            print(f"Total duration: {total_duration_seconds:.2f} seconds")
+            print(f"Expected chunk duration: {expected_chunk_duration:.2f} seconds")
+            print(f"Chunk size parameter: {chunk_size_seconds:.2f} seconds")
         
-        try:
-            # Detect language from the first chunk if not provided
-            if language is None:
-                print("Detecting language from first chunk...")
-                first_file = downloaded_files[0]
-                language = self.detect_language_from_file(
-                    first_file, language_detection_min_prob, language_detection_max_tries,
-                    temperature, initial_prompt, vad_onset, vad_offset
-                )
+        # If language not provided, download and detect from first file
+        if language is None:
+            print("Downloading first audio file for language detection...")
+            first_file = asyncio.run(self.download_audio_files([audio_urls[0]]))[0]
+            language = self.detect_language_from_file(
+                first_file, language_detection_min_prob, language_detection_max_tries,
+                temperature, initial_prompt, vad_onset, vad_offset
+            )
+            if language:
                 print(f"Detected language: {language}")
-            
-            # Process chunks in parallel
-            chunk_results = self.process_chunks_parallel(
-                downloaded_files, language, chunk_duration_seconds,
-                batch_size, temperature, initial_prompt, vad_onset, vad_offset,
-                align_output, diarization, huggingface_access_token,
-                min_speakers, max_speakers, debug
-            )
-            
-            # Merge results
-            merged_result = self.merge_chunk_results(chunk_results, debug)
-            
-            processing_time = time.time() - start_processing_time
-            
-            if debug:
-                print(f"Total processing time: {processing_time:.2f} seconds")
-                print(f"max gpu memory allocated over runtime: {torch.cuda.max_memory_reserved() / (1024 ** 3):.2f} GB")
-            
-            return Output(
-                segments=merged_result["segments"],
-                detected_language=merged_result["language"],
-                total_chunks=len(audio_urls),
-                processing_time=processing_time
-            )
+            else:
+                print("Could not confidently detect language from first file – falling back to per-chunk detection.")
+            try:
+                first_file.unlink()
+            except Exception:
+                pass
         
-        finally:
-            # Clean up downloaded files
-            for file_path in downloaded_files:
-                try:
-                    file_path.unlink()
-                except Exception as e:
-                    print(f"Warning: Could not delete temporary file {file_path}: {e}")
+        # Process chunks sequentially with download pipeline
+        chunk_results = asyncio.run(self.download_and_process_pipeline(
+            audio_urls, language, chunk_size_seconds, batch_size,
+            temperature, initial_prompt, vad_onset, vad_offset,
+            align_output, diarization, huggingface_access_token,
+            min_speakers, max_speakers, debug
+        ))
+
+        # Merge and return
+        merged = self.merge_chunk_results(chunk_results, debug)
+        processing_time = time.time() - start_processing_time
+        if debug:
+            print(f"Total processing time: {processing_time:.2f} seconds")
+        return Output(
+            segments=merged["segments"],
+            detected_language=merged["language"],
+            total_chunks=len(audio_urls),
+            processing_time=processing_time
+        )
 
     async def download_audio_files(self, urls: List[str]) -> List[PathlibPath]:
         """Download audio files from URLs asynchronously."""
@@ -204,6 +215,55 @@ class Predictor(BasePredictor):
             print(f"Error downloading chunk {index + 1} from {url}: {e}")
             raise
     
+    async def download_and_process_pipeline(self, urls: List[str], language: str, chunk_duration: float,
+                                           batch_size: int, temperature: float, initial_prompt: str,
+                                           vad_onset: float, vad_offset: float,
+                                           align_output: bool, diarization: bool,
+                                           huggingface_access_token: str, min_speakers: int, max_speakers: int,
+                                           debug: bool) -> List[ChunkResult]:
+        """
+        Download next chunk while processing current one sequentially, keeping downloads active during GPU processing.
+        """
+        async with aiohttp.ClientSession() as session:
+            # start fetching first chunk
+            download_task = asyncio.create_task(self.download_single_file(session, urls[0], 0))
+            results: List[ChunkResult] = []
+            start_time_offset = 0.0
+
+            for i, url in enumerate(urls):
+                # wait for the current chunk to finish downloading
+                file_path = await download_task
+                # schedule next download for the following chunk
+                if i + 1 < len(urls):
+                    download_task = asyncio.create_task(
+                        self.download_single_file(session, urls[i+1], i+1)
+                    )
+
+                # compute actual duration of the downloaded chunk (seconds)
+                actual_duration = get_audio_duration(file_path) / 1000.0
+
+                # process the chunk in a separate thread so downloads continue concurrently
+                result = await asyncio.to_thread(
+                    self.process_single_chunk,
+                    i, file_path, start_time_offset, language, batch_size,
+                    temperature, initial_prompt, vad_onset, vad_offset,
+                    align_output, diarization, huggingface_access_token,
+                    min_speakers, max_speakers, debug
+                )
+                results.append(result)
+
+                # cleanup temp file
+                try:
+                    file_path.unlink()
+                except Exception:
+                    pass
+
+                # update offset using the actual duration of this chunk
+                start_time_offset += actual_duration
+            return results
+    
+
+    
     def detect_language_from_file(self, audio_file: PathlibPath, min_prob: float, max_tries: int,
                                   temperature: float, initial_prompt: str, vad_onset: float, vad_offset: float) -> str:
         """Detect language from a single audio file."""
@@ -245,49 +305,7 @@ class Predictor(BasePredictor):
                 
                 return detected_language
     
-    def process_chunks_parallel(self, audio_files: List[PathlibPath], language: str, chunk_duration: Optional[float],
-                               batch_size: int, temperature: float, initial_prompt: str, vad_onset: float, vad_offset: float,
-                               align_output: bool, diarization: bool, huggingface_access_token: str,
-                               min_speakers: int, max_speakers: int, debug: bool) -> List[ChunkResult]:
-        """Process audio chunks in parallel using ThreadPoolExecutor."""
-        
-        # Calculate chunk durations if not provided
-        if chunk_duration is None:
-            chunk_durations = []
-            for audio_file in audio_files:
-                duration_ms = get_audio_duration(audio_file)
-                chunk_durations.append(duration_ms / 1000.0)  # Convert to seconds
-        else:
-            chunk_durations = [chunk_duration] * len(audio_files)
-        
-        # Calculate start time offsets
-        start_time_offsets = [0.0]
-        for i in range(1, len(chunk_durations)):
-            start_time_offsets.append(start_time_offsets[-1] + chunk_durations[i-1])
-        
-        # Process chunks in parallel using threads (since WhisperX uses CUDA)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(audio_files))) as executor:
-            futures = []
-            
-            for i, (audio_file, start_offset) in enumerate(zip(audio_files, start_time_offsets)):
-                future = executor.submit(
-                    self.process_single_chunk,
-                    i, audio_file, start_offset, language, batch_size, temperature, initial_prompt,
-                    vad_onset, vad_offset, align_output, diarization, huggingface_access_token,
-                    min_speakers, max_speakers, debug
-                )
-                futures.append(future)
-            
-            # Collect results
-            chunk_results = []
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                chunk_results.append(result)
-        
-        # Sort results by chunk index to maintain order
-        chunk_results.sort(key=lambda x: x.chunk_index)
-        
-        return chunk_results
+
     
     def process_single_chunk(self, chunk_index: int, audio_file: PathlibPath, start_time_offset: float,
                             language: str, batch_size: int, temperature: float, initial_prompt: str,
@@ -338,6 +356,8 @@ class Predictor(BasePredictor):
             for segment in result["segments"]:
                 segment["start"] += start_time_offset
                 segment["end"] += start_time_offset
+                # Add chunk index for debugging and sorting
+                segment["chunk_index"] = chunk_index
                 
                 # Adjust word-level timestamps if they exist
                 if "words" in segment:
@@ -371,13 +391,24 @@ class Predictor(BasePredictor):
         for chunk_result in chunk_results:
             all_segments.extend(chunk_result.segments)
         
-        # Sort segments by start time to ensure proper order
-        all_segments.sort(key=lambda x: x["start"])
+        # Sort segments by start time to ensure proper chronological order
+        # Use both start time and chunk index as tiebreaker for segments with same start time
+        all_segments.sort(key=lambda x: (x["start"], x.get("chunk_index", 0)))
+        
+        # Validate that segments are in chronological order
+        if len(all_segments) > 1:
+            for i in range(1, len(all_segments)):
+                if all_segments[i]["start"] < all_segments[i-1]["start"]:
+                    if debug:
+                        print(f"Warning: Segment {i} starts at {all_segments[i]['start']:.2f}s but previous segment ends at {all_segments[i-1]['end']:.2f}s")
         
         if debug:
             print(f"Merged {len(all_segments)} segments from {len(chunk_results)} chunks")
-            total_duration = all_segments[-1]["end"] if all_segments else 0
-            print(f"Total transcription duration: {total_duration:.2f} seconds")
+            if all_segments:
+                total_duration = all_segments[-1]["end"]
+                print(f"Total transcription duration: {total_duration:.2f} seconds")
+                print(f"First segment: {all_segments[0]['start']:.2f}s - {all_segments[0]['end']:.2f}s")
+                print(f"Last segment: {all_segments[-1]['start']:.2f}s - {all_segments[-1]['end']:.2f}s")
         
         return {
             "segments": all_segments,

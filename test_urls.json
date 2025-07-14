@@ -1,10 +1,37 @@
 {
   "audio_urls": [
-    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts1.mp3",
-    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts2.mp3",
-    "https://storage.googleapis.com/meowtxt-bucket/test/cat-facts3.mp3"
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_1.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_2.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_3.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_4.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_5.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_6.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_7.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_8.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_9.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_10.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_11.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_12.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_13.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_14.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_15.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_16.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_17.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_18.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_19.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_20.flac",
+    "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_21.flac"
   ],
-  "chunk_duration_seconds": 24.0,
+  "total_duration_seconds": 601.0,
+  "chunk_size_seconds": 30.0,
   "language": "en",
-  "debug": true
+  "debug": true,
+  "vad_onset": 0.5,
+  "batch_size": 32,
+  "vad_offset": 0.363,
+  "diarization": false,
+  "temperature": 0.2,
+  "align_output": false,
+  "language_detection_min_prob": 0.7,
+  "language_detection_max_tries": 5
 } 

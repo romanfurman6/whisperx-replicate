@@ -18,20 +18,21 @@ For more information about WhisperX, including implementation details, see the [
 
 ## Multi-Chunk Processing
 
-This implementation supports processing multiple audio chunks in parallel, which is useful for transcribing large videos that have been split into smaller segments. 
+This implementation supports processing multiple audio chunks sequentially, which is useful for transcribing large videos that have been split into smaller segments. 
 
 ### Key Features:
 
-- **Parallel Processing**: Multiple audio chunks are processed simultaneously using ThreadPoolExecutor to maximize GPU utilization on H100
+- **Sequential Processing**: Audio chunks are processed one at a time to ensure consistent language detection and memory management
 - **Automatic Timestamp Alignment**: Timestamps are automatically adjusted to maintain temporal continuity across chunks
 - **Smart Merging**: Results are merged while preserving the correct temporal order of segments
 - **Language Detection**: Language is detected from the first chunk and applied consistently across all chunks
-- **Error Handling**: Robust error handling for download failures and processing issues
+- **URL Download Support**: Works with public audio URLs with automatic download and cleanup
 
 ### Input Parameters:
 
-- `audio_urls`: Array of audio file URLs (chunks of one video in temporal order)
-- `chunk_duration_seconds`: Duration of each chunk in seconds (auto-detected if not provided)
+- `audio_urls`: Array of public audio URLs (chunks of one video in temporal order)
+- `total_duration_seconds`: Total duration of the complete audio in seconds
+- `chunk_size_seconds`: Duration of each chunk in seconds (used for timestamp calculation). Latest chunk can be shorter, it will be calculated based on the total duration and the number of chunks.
 - All other parameters remain the same as the original WhisperX model
 
 ### Usage Example:
@@ -46,8 +47,9 @@ audio_urls = [
 
 result = predictor.predict(
     audio_urls=audio_urls,
-    chunk_duration_seconds=30.0,  # Optional: specify if chunks are uniform
-    language="en",  # Optional: will be auto-detected if not provided
+    total_duration_seconds=90.0,  # Total duration of complete audio
+    chunk_size_seconds=30.0,      # Duration of each chunk
+    language="en",                # Optional: will be auto-detected if not provided
     align_output=True,
     debug=True
 )
