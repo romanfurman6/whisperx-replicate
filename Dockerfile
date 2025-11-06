@@ -4,8 +4,8 @@
 # Fixed: Using CuDNN 9 for compatibility with PyTorch 2.5+
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.1 with CuDNN 9
-FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn9-devel-ubuntu22.04
+# Using CUDA 12.3.2 with CuDNN 9
+FROM --platform=linux/amd64 nvidia/cuda:12.3.2-cudnn9-devel-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
