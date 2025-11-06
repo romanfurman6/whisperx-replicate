@@ -414,6 +414,12 @@ class Predictor(BasePredictor):
             "vad_offset": vad_offset
         }
         
+        # TEMPORARY: Disable VAD to avoid segfault with incompatible pyannote versions
+        # TODO: Find compatible pyannote version or update VAD checkpoint
+        vad_options = None
+        if debug:
+            print("  ⚠ VAD disabled due to compatibility issues")
+        
         for attempt in range(max_retries):
             try:
                 # Clear CUDA cache before loading
