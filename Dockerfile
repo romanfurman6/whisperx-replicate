@@ -1,8 +1,9 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Using official WhisperX repo
+# Version: 0.6
+# Using official WhisperX with Silero VAD (compatible with modern torch/pyannote)
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.1 (compatible with PyTorch 2.5.1)
+# Using CUDA 12.1
 FROM --platform=linux/amd64 nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts
@@ -47,27 +48,14 @@ RUN pip install --no-cache-dir cog>=0.9.0
 # Install WhisperX directly from main repo (handles all dependencies itself)
 RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
-# Pre-download VAD model (prevents runtime crash)
-RUN python3 -c "import whisperx; from whisperx.vad import load_vad_model; load_vad_model('cpu')"
-
-# Verify versions
-RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"
+# Verify installations
+RUN python3 -c "import torch; print(f'✓ PyTorch: {torch.__version__}'); import torchaudio; print(f'✓ TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'✓ pyannote.audio: {pyannote.audio.__version__}'); import whisperx; print('✓ WhisperX: OK')"
 
 # Copy application code
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p models/vad /root/.cache/torch
-
-# Download VAD model
-RUN python3 get_vad_model_url.py || echo "VAD model download handled at runtime"
-
-# Pre-download WhisperX models (optional, can be done at runtime)
-# This reduces cold start time but increases image size
-RUN python3 -c "import whisperx; print('WhisperX imported successfully')" || echo "WhisperX will load models at runtime"
-
-# Set permissions
-RUN chmod +x build.sh || true
+RUN mkdir -p /root/.cache/torch
 
 # Expose port for health checks
 EXPOSE 8000
