@@ -1,14 +1,16 @@
 # WhisperX RunPod Serverless Requirements
-# Using working configuration from commit e247b26
+# Using verified configuration from whisperx-worker repo
+# https://github.com/kodxana/whisperx-worker
 
 # Core PyTorch stack - installed in Dockerfile
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.5.1+cu121
-torchvision==0.20.1+cu121
-torchaudio==2.5.1+cu121
+torch==2.1.0+cu121
+torchaudio==2.1.0+cu121
 
-# WhisperX - will auto-resolve pyannote dependencies
-git+https://github.com/m-bain/whisperX.git
+# WhisperX and pyannote (pinned to working versions)
+git+https://github.com/m-bain/whisperX.git@8f00339af7dcc9705ef40d97a1f40764b7cf555f
+pyannote.audio==3.1.1
+speechbrain==0.5.16
 
 # Audio processing
 ffmpeg-python==0.2.0

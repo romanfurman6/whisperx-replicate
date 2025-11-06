@@ -3,7 +3,7 @@ set -e
 
 echo "=========================================="
 echo "WhisperX RunPod Test Setup"
-echo "PyTorch 2.5.1 (working configuration)"
+echo "PyTorch 2.1.0 (whisperx-worker verified config)"
 echo "=========================================="
 
 # Update system
@@ -33,13 +33,12 @@ echo ""
 echo "Removing conflicting packages..."
 pip uninstall -y torch torchvision torchaudio pyannote-audio pyannote-pipeline pyannote-core whisperx 2>/dev/null || true
 
-# Install PyTorch 2.5.1 (matches working configuration)
+# Install PyTorch 2.1.0 (from working whisperx-worker repo)
 echo ""
-echo "Installing PyTorch 2.5.1..."
+echo "Installing PyTorch 2.1.0+cu121..."
 pip install --no-cache-dir \
-    torch==2.5.1 \
-    torchvision==0.20.1 \
-    torchaudio==2.5.1 \
+    torch==2.1.0+cu121 \
+    torchaudio==2.1.0+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Install dependencies
@@ -49,18 +48,20 @@ pip install --no-cache-dir ffmpeg-python==0.2.0 requests aiohttp aiofiles
 pip install --no-cache-dir runpod
 pip install --no-cache-dir cog
 
-# Install WhisperX from main branch (compatible with torch 2.1.x)
+# Install WhisperX and pyannote (exact versions from working whisperx-worker repo)
 echo ""
-echo "Installing WhisperX (main branch)..."
-pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
+echo "Installing WhisperX (commit 8f00339) and pyannote.audio 3.1.1..."
+pip install --no-cache-dir \
+    git+https://github.com/m-bain/whisperX.git@8f00339af7dcc9705ef40d97a1f40764b7cf555f \
+    pyannote.audio==3.1.1 \
+    speechbrain==0.5.16
 
 # Re-lock PyTorch versions
 echo ""
 echo "Locking PyTorch versions..."
 pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.5.1 \
-    torchvision==0.20.1 \
-    torchaudio==2.5.1 \
+    torch==2.1.0+cu121 \
+    torchaudio==2.1.0+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Verify installations
@@ -88,8 +89,9 @@ echo "✓ Setup complete!"
 echo "=========================================="
 echo ""
 echo "Configuration:"
-echo "  - PyTorch: 2.5.1"
-echo "  - WhisperX: main branch (with auto-resolved dependencies)"
+echo "  - PyTorch: 2.1.0+cu121"
+echo "  - pyannote.audio: 3.1.1"
+echo "  - WhisperX: commit 8f00339 (verified working)"
 echo "  - CUDA: 12.1 compatible"
 echo ""
 echo "To test, run:"
