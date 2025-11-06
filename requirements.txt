@@ -1,20 +1,30 @@
 # WhisperX RunPod Serverless Requirements
-# CUDA 12.1 compatible versions
+# Using PyTorch 2.5.1+cu121 (latest available for CUDA 12.1)
 
-# Core PyTorch stack for CUDA 12.1
-# Installed separately in Dockerfile with correct CUDA index
-# DO NOT remove these comments - they prevent version conflicts
-torch==2.1.0
-torchvision==0.16.0
-torchaudio==2.1.0
+# Core PyTorch stack - installed in Dockerfile
+# torch==2.5.1+cu121
+# torchvision==0.20.1+cu121  
+# torchaudio==2.5.1+cu121
 
-# WhisperX and dependencies
-git+https://github.com/m-bain/whisperx.git
+# WhisperX - use v3.7.3 (latest version compatible with PyTorch 2.5.1)
+# v3.7.4 requires PyTorch 2.8.0 which isn't available for CUDA 12.1
+git+https://github.com/m-bain/whisperX.git@v3.7.3
+
+# WhisperX core dependencies (automatically installed but listed for reference)
+# ctranslate2>=4.5.0
+# faster-whisper>=1.1.1
+# nltk>=3.9.1
+# numpy>=2.0.2,<2.1.0
+# pandas>=2.2.3,<2.3.0
+# av<16.0.0
+# pyannote-audio>=3.3.2,<4.0.0
+# transformers>=4.48.0
+# triton>=3.3.0
 
 # Audio processing
 ffmpeg-python==0.2.0
 
-# HTTP and async
+# HTTP and async for multi-chunk processing
 requests>=2.31.0
 aiohttp>=3.9.0
 aiofiles>=23.2.1
@@ -22,11 +32,5 @@ aiofiles>=23.2.1
 # RunPod serverless SDK
 runpod>=1.6.0
 
-# Speaker diarization (optional, requires HF token)
-pyannote.audio>=3.1.0
-
-# Cog for prediction interface
+# Cog for prediction interface compatibility
 cog>=0.9.0
-
-# Additional utilities
-numpy>=1.24.0

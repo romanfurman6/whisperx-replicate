@@ -34,22 +34,37 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch with CUDA 12.1 support first
-# Use compatible versions: torch 2.1.0 is stable with CUDA 12.1
+# Install PyTorch 2.5.1 with CUDA 12.1 support (latest available for CUDA 12.1)
+# Note: PyTorch 2.8.0 not yet available in CUDA 12.1 wheel index
 RUN pip install --no-cache-dir \
-    torch==2.1.0+cu121 \
-    torchvision==0.16.0+cu121 \
-    torchaudio==2.1.0+cu121 \
+    torch==2.5.1+cu121 \
+    torchvision==0.20.1+cu121 \
+    torchaudio==2.5.1+cu121 \
     --index-url https://download.pytorch.org/whl/cu121
 
 # Install remaining Python dependencies
-# Use --no-deps for torch packages to prevent version conflicts
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.1.0+cu121 \
-    torchvision==0.16.0+cu121 \
-    torchaudio==2.1.0+cu121 \
+# Install in stages to handle dependency conflicts
+RUN pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
+
+# Install RunPod SDK
+RUN pip install --no-cache-dir runpod>=1.6.0
+
+# Install cog
+RUN pip install --no-cache-dir cog>=0.9.0
+
+# Install WhisperX v3.7.3 (latest compatible with PyTorch 2.5.1)
+# v3.7.4 requires PyTorch 2.8.0 which isn't available for CUDA 12.1
+RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git@v3.7.3
+
+# Ensure torch versions are locked after all installs (prevent upgrades from other packages)
+RUN pip install --no-cache-dir --force-reinstall --no-deps \
+    torch==2.5.1+cu121 \
+    torchvision==0.20.1+cu121 \
+    torchaudio==2.5.1+cu121 \
     --index-url https://download.pytorch.org/whl/cu121
+
+# Verify torch versions
+RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import torchvision; print(f'TorchVision: {torchvision.__version__}')"
 
 # Copy application code
 COPY . .
