@@ -1,14 +1,13 @@
 # WhisperX RunPod Serverless Requirements
-# Using PyTorch 2.5.1+cu121 (latest available for CUDA 12.1)
+# Using PyTorch 2.8.0 (latest) with CUDA 12.6+
 
 # Core PyTorch stack - installed in Dockerfile
-# torch==2.5.1+cu121
-# torchvision==0.20.1+cu121  
-# torchaudio==2.5.1+cu121
+# torch==2.8.0
+# torchvision==0.24.0
+# torchaudio==2.8.0
 
-# WhisperX - use v3.7.3 (latest version compatible with PyTorch 2.5.1)
-# v3.7.4 requires PyTorch 2.8.0 which isn't available for CUDA 12.1
-git+https://github.com/m-bain/whisperX.git@v3.7.3
+# WhisperX - v3.7.4 (latest, requires PyTorch 2.8.0)
+git+https://github.com/m-bain/whisperX.git@v3.7.4
 
 # WhisperX core dependencies (automatically installed but listed for reference)
 # ctranslate2>=4.5.0

@@ -1,8 +1,9 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Optimized for CUDA 12.1 and serverless deployment
+# Optimized for CUDA 12.6/PyTorch 2.8.0 and serverless deployment
 
 # Force AMD64 architecture for RunPod compatibility
-FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+# Using CUDA 12.6 (latest with official cuDNN support)
+FROM --platform=linux/amd64 nvidia/cuda:12.6.0-cudnn-runtime-ubuntu24.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,13 +35,12 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch 2.5.1 with CUDA 12.1 support (latest available for CUDA 12.1)
-# Note: PyTorch 2.8.0 not yet available in CUDA 12.1 wheel index
+# Install PyTorch 2.8.0 (latest stable)
+# Works with CUDA 12.x (12.1 through 12.8)
 RUN pip install --no-cache-dir \
-    torch==2.5.1+cu121 \
-    torchvision==0.20.1+cu121 \
-    torchaudio==2.5.1+cu121 \
-    --index-url https://download.pytorch.org/whl/cu121
+    torch==2.8.0 \
+    torchvision==0.24.0 \
+    torchaudio==2.8.0
 
 # Install remaining Python dependencies
 # Install in stages to handle dependency conflicts
@@ -52,16 +52,14 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX v3.7.3 (latest compatible with PyTorch 2.5.1)
-# v3.7.4 requires PyTorch 2.8.0 which isn't available for CUDA 12.1
-RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git@v3.7.3
+# Install WhisperX v3.7.4 (latest - requires PyTorch 2.8.0)
+RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git@v3.7.4
 
 # Ensure torch versions are locked after all installs (prevent upgrades from other packages)
 RUN pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.5.1+cu121 \
-    torchvision==0.20.1+cu121 \
-    torchaudio==2.5.1+cu121 \
-    --index-url https://download.pytorch.org/whl/cu121
+    torch==2.8.0 \
+    torchvision==0.24.0 \
+    torchaudio==2.8.0
 
 # Verify torch versions
 RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import torchvision; print(f'TorchVision: {torchvision.__version__}')"
