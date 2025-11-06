@@ -1,10 +1,10 @@
 # WhisperX RunPod Serverless Requirements
-# Using PyTorch 2.1.2 for compatibility with pyannote.audio 2.1.1
+# Using PyTorch 2.2.0 for compatibility with pyannote.audio 2.1.1
 
 # Core PyTorch stack - installed in Dockerfile
-# torch==2.1.2
-# torchvision==0.16.2
-# torchaudio==2.1.2
+# torch==2.2.0
+# torchvision==0.17.0
+# torchaudio==2.2.0
 
 # WhisperX - using main branch compatible with torch 2.1.x
 git+https://github.com/m-bain/whisperX.git
