@@ -1,10 +1,11 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Version: 0.6
+# Version: 0.7
 # Using official WhisperX with Silero VAD (compatible with modern torch/pyannote)
+# Fixed: Using CuDNN 9 for compatibility with PyTorch 2.5+
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.1
-FROM --platform=linux/amd64 nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# Using CUDA 12.1 with CuDNN 9
+FROM --platform=linux/amd64 nvidia/cuda:12.1.0-cudnn9-devel-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
