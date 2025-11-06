@@ -1,6 +1,7 @@
 from cog import BasePredictor, Input, BaseModel
 from typing import Any, List, Dict, Optional
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
+from whisperx.diarize import DiarizationPipeline
 
 import asyncio
 import aiohttp
@@ -617,7 +618,7 @@ def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_sp
     """Perform speaker diarization."""
     start_time = time.time()
     
-    diarize_model = whisperx.DiarizationPipeline(use_auth_token=huggingface_access_token, device=device)
+    diarize_model = DiarizationPipeline(use_auth_token=huggingface_access_token, device=device)
     diarize_segments = diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
     result = whisperx.assign_word_speakers(diarize_segments, result)
     
