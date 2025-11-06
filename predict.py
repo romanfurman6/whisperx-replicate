@@ -18,6 +18,26 @@ from pathlib import Path as PathlibPath
 import urllib.parse
 import sys
 
+try:
+    from pydantic.fields import FieldInfo
+except ImportError:  # pragma: no cover - fallback for older Cog/pydantic versions
+    FieldInfo = None
+
+
+def _resolve_input_default(value):
+    """Convert Cog Input FieldInfo defaults into concrete values when invoked directly."""
+    if FieldInfo is not None and isinstance(value, FieldInfo):
+        default = getattr(value, "default", None)
+        if default is not None and default.__class__.__name__ not in {"PydanticUndefinedType", "UndefinedType"}:
+            return default
+
+        default_factory = getattr(value, "default_factory", None)
+        if callable(default_factory):
+            return default_factory()
+        return None
+
+    return value
+
 compute_type = "float16"
 device = "cuda"
 whisper_arch = "large-v3"
@@ -180,6 +200,24 @@ class Predictor(BasePredictor):
                 default=True
             )
     ) -> Output:
+        audio_urls = _resolve_input_default(audio_urls)
+        total_duration_seconds = _resolve_input_default(total_duration_seconds)
+        chunk_size_seconds = _resolve_input_default(chunk_size_seconds)
+        language = _resolve_input_default(language)
+        language_detection_min_prob = _resolve_input_default(language_detection_min_prob)
+        language_detection_max_tries = _resolve_input_default(language_detection_max_tries)
+        initial_prompt = _resolve_input_default(initial_prompt)
+        batch_size = _resolve_input_default(batch_size)
+        temperature = _resolve_input_default(temperature)
+        vad_onset = _resolve_input_default(vad_onset)
+        vad_offset = _resolve_input_default(vad_offset)
+        align_output = _resolve_input_default(align_output)
+        diarization = _resolve_input_default(diarization)
+        huggingface_access_token = _resolve_input_default(huggingface_access_token)
+        min_speakers = _resolve_input_default(min_speakers)
+        max_speakers = _resolve_input_default(max_speakers)
+        debug = _resolve_input_default(debug)
+
         start_processing_time = time.time()
         
         if not audio_urls:
