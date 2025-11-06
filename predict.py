@@ -432,6 +432,7 @@ class Predictor(BasePredictor):
                     compute_type=compute_type,
                     language=language,
                     asr_options=asr_options,
+                    vad_model=None,  # Explicitly disable VAD model
                     vad_options=vad_options
                 )
                 
