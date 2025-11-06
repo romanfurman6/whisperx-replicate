@@ -3,7 +3,7 @@ set -e
 
 echo "=========================================="
 echo "WhisperX RunPod Test Setup"
-echo "PyTorch 2.2.0 (whisperx-worker config adapted)"
+echo "Using official WhisperX repo"
 echo "=========================================="
 
 # Update system
@@ -33,14 +33,6 @@ echo ""
 echo "Removing conflicting packages..."
 pip uninstall -y torch torchvision torchaudio pyannote-audio pyannote-pipeline pyannote-core whisperx 2>/dev/null || true
 
-# Install PyTorch 2.2.0 (earliest available for cu121)
-echo ""
-echo "Installing PyTorch 2.2.0+cu121..."
-pip install --no-cache-dir \
-    torch==2.2.0+cu121 \
-    torchaudio==2.2.0+cu121 \
-    --extra-index-url https://download.pytorch.org/whl/cu121
-
 # Install dependencies
 echo ""
 echo "Installing dependencies..."
@@ -48,18 +40,10 @@ pip install --no-cache-dir ffmpeg-python==0.2.0 requests aiohttp aiofiles
 pip install --no-cache-dir runpod
 pip install --no-cache-dir cog
 
-# Install WhisperX and pyannote (compatible with torch 2.2)
+# Install WhisperX directly from main repo (handles all dependencies itself)
 echo ""
-echo "Installing WhisperX v3.1.5 and pyannote.audio 3.1.1..."
-pip install --no-cache-dir whisperx==3.1.5 pyannote.audio==3.1.1 speechbrain==0.5.16
-
-# Re-lock PyTorch versions
-echo ""
-echo "Locking PyTorch versions..."
-pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.2.0+cu121 \
-    torchaudio==2.2.0+cu121 \
-    --extra-index-url https://download.pytorch.org/whl/cu121
+echo "Installing WhisperX from main repo..."
+pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
 # Verify installations
 echo ""
@@ -86,10 +70,8 @@ echo "✓ Setup complete!"
 echo "=========================================="
 echo ""
 echo "Configuration:"
-echo "  - PyTorch: 2.2.0+cu121"
-echo "  - pyannote.audio: 3.1.1"
-echo "  - WhisperX: 3.1.5"
-echo "  - CUDA: 12.1 compatible"
+echo "  - WhisperX: main branch (latest)"
+echo "  - All dependencies auto-resolved by WhisperX"
 echo ""
 echo "To test, run:"
 echo "  python3 predict.py"

@@ -1,6 +1,5 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Optimized for CUDA 12.1/PyTorch 2.1.0 and serverless deployment
-# Using verified configuration from whisperx-worker repo
+# Using official WhisperX repo
 
 # Force AMD64 architecture for RunPod compatibility
 # Using CUDA 12.1 (compatible with PyTorch 2.5.1)
@@ -36,14 +35,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch 2.2.0 (earliest available for cu121)
-# CUDA 12.1 support
-RUN pip install --no-cache-dir \
-    torch==2.2.0+cu121 \
-    torchaudio==2.2.0+cu121 \
-    --extra-index-url https://download.pytorch.org/whl/cu121
-
-# Install remaining Python dependencies
+# Install base dependencies
 RUN pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
 
 # Install RunPod SDK
@@ -52,13 +44,8 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX and pyannote (compatible with torch 2.2)
-RUN pip install --no-cache-dir whisperx==3.1.5 pyannote.audio==3.1.1 speechbrain==0.5.16
-
-# Ensure torch versions stay locked
-RUN pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.2.0+cu121 \
-    torchaudio==2.2.0+cu121
+# Install WhisperX directly from main repo (handles all dependencies itself)
+RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
 # Verify versions
 RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"
