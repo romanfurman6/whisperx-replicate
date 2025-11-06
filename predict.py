@@ -346,7 +346,7 @@ class Predictor(BasePredictor):
                         self.download_single_file(session, urls[i+1], i+1)
                     )
 
-                actual_duration = get_audio_duration(file_path) / 1000.0
+                actual_duration = get_audio_duration(file_path)
 
                 result = await asyncio.to_thread(
                     self.process_single_chunk,
@@ -376,7 +376,7 @@ class Predictor(BasePredictor):
         audio_duration = get_audio_duration(audio_file)
         
         if debug:
-            print(f"  Detecting language from {audio_duration/1000:.1f}s audio...")
+            print(f"  Detecting language from {audio_duration:.1f}s audio...")
         
         try:
             with torch.inference_mode():
@@ -587,10 +587,13 @@ class Predictor(BasePredictor):
 
 
 def get_audio_duration(file_path):
-    """Get audio duration in milliseconds."""
+    """Get audio duration in seconds."""
     probe = ffmpeg.probe(str(file_path))
     stream = next((s for s in probe['streams'] if s['codec_type'] == 'audio'), None)
-    return float(stream['duration']) * 1000
+    if stream is None:
+        raise ValueError(f"No audio stream found in {file_path}")
+    duration = float(stream['duration'])
+    return duration
 
 
 def align(audio, result, debug):
