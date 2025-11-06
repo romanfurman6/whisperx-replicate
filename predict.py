@@ -388,8 +388,8 @@ class Predictor(BasePredictor):
                         print("  Loading WhisperX model...")
                     self._asr_model_cached = self._load_model_with_retry(None, temperature, initial_prompt, vad_onset, vad_offset, debug)
                 
-                # Disable VAD in transcription to avoid segfault
-                result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size), vad_filter=False)
+                # VAD is already disabled via vad_options=None in model loading
+                result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size))
                 detected_language = result.get("language", "en")
                 
                 if debug:
@@ -415,11 +415,7 @@ class Predictor(BasePredictor):
             "vad_offset": vad_offset
         }
         
-        # TEMPORARY: Disable VAD to avoid segfault with incompatible pyannote versions
-        # TODO: Find compatible pyannote version or update VAD checkpoint
-        vad_options = None
-        if debug:
-            print("  ⚠ VAD disabled due to compatibility issues")
+        # VAD model is pre-downloaded during setup to prevent runtime crashes
         
         for attempt in range(max_retries):
             try:
@@ -538,8 +534,8 @@ class Predictor(BasePredictor):
         """Transcribe audio with retry logic."""
         for attempt in range(max_retries):
             try:
-                # Disable VAD in transcription to avoid segfault
-                return self._asr_model_cached.transcribe(audio, batch_size=batch_size, vad_filter=False)
+                # VAD is already disabled via vad_options=None in model loading
+                return self._asr_model_cached.transcribe(audio, batch_size=batch_size)
             except RuntimeError as e:
                 if "CUDA" in str(e) or "out of memory" in str(e):
                     if debug:

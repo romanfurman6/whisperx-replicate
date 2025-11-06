@@ -47,6 +47,9 @@ RUN pip install --no-cache-dir cog>=0.9.0
 # Install WhisperX directly from main repo (handles all dependencies itself)
 RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
+# Pre-download VAD model (prevents runtime crash)
+RUN python3 -c "import whisperx; from whisperx.vad import load_vad_model; load_vad_model('cpu')"
+
 # Verify versions
 RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"
 

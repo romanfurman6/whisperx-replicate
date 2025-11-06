@@ -45,6 +45,11 @@ echo ""
 echo "Installing WhisperX from main repo..."
 pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
+# Pre-download VAD model (prevents runtime crash)
+echo ""
+echo "Pre-downloading VAD model..."
+python3 -c "import whisperx; from whisperx.vad import load_vad_model; load_vad_model('cpu')" || echo "VAD model download failed, will retry at runtime"
+
 # Verify installations
 echo ""
 echo "=========================================="
