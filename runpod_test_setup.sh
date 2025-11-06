@@ -3,7 +3,7 @@ set -e
 
 echo "=========================================="
 echo "WhisperX RunPod Test Setup"
-echo "PyTorch 2.1.0 (whisperx-worker verified config)"
+echo "PyTorch 2.2.0 (whisperx-worker config adapted)"
 echo "=========================================="
 
 # Update system
@@ -33,12 +33,12 @@ echo ""
 echo "Removing conflicting packages..."
 pip uninstall -y torch torchvision torchaudio pyannote-audio pyannote-pipeline pyannote-core whisperx 2>/dev/null || true
 
-# Install PyTorch 2.1.0 (from working whisperx-worker repo)
+# Install PyTorch 2.2.0 (earliest available for cu121)
 echo ""
-echo "Installing PyTorch 2.1.0+cu121..."
+echo "Installing PyTorch 2.2.0+cu121..."
 pip install --no-cache-dir \
-    torch==2.1.0+cu121 \
-    torchaudio==2.1.0+cu121 \
+    torch==2.2.0+cu121 \
+    torchaudio==2.2.0+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Install dependencies
@@ -60,8 +60,8 @@ pip install --no-cache-dir \
 echo ""
 echo "Locking PyTorch versions..."
 pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.1.0+cu121 \
-    torchaudio==2.1.0+cu121 \
+    torch==2.2.0+cu121 \
+    torchaudio==2.2.0+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Verify installations
@@ -89,7 +89,7 @@ echo "✓ Setup complete!"
 echo "=========================================="
 echo ""
 echo "Configuration:"
-echo "  - PyTorch: 2.1.0+cu121"
+echo "  - PyTorch: 2.2.0+cu121"
 echo "  - pyannote.audio: 3.1.1"
 echo "  - WhisperX: commit 8f00339 (verified working)"
 echo "  - CUDA: 12.1 compatible"

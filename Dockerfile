@@ -36,11 +36,11 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch 2.1.0 (from whisperx-worker verified config)
+# Install PyTorch 2.2.0 (earliest available for cu121)
 # CUDA 12.1 support
 RUN pip install --no-cache-dir \
-    torch==2.1.0+cu121 \
-    torchaudio==2.1.0+cu121 \
+    torch==2.2.0+cu121 \
+    torchaudio==2.2.0+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Install remaining Python dependencies
@@ -60,8 +60,8 @@ RUN pip install --no-cache-dir \
 
 # Ensure torch versions stay locked
 RUN pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.1.0+cu121 \
-    torchaudio==2.1.0+cu121
+    torch==2.2.0+cu121 \
+    torchaudio==2.2.0+cu121
 
 # Verify versions
 RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"

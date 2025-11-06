@@ -4,8 +4,8 @@
 
 # Core PyTorch stack - installed in Dockerfile
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.1.0+cu121
-torchaudio==2.1.0+cu121
+torch==2.2.0+cu121
+torchaudio==2.2.0+cu121
 
 # WhisperX and pyannote (pinned to working versions)
 git+https://github.com/m-bain/whisperX.git@8f00339af7dcc9705ef40d97a1f40764b7cf555f
