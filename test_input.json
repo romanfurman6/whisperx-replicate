@@ -1,0 +1,20 @@
+{
+  "input": {
+    "audio_urls": [
+      "https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
+    ],
+    "total_duration_seconds": 11.0,
+    "chunk_size_seconds": 30.0,
+    "language": "en",
+    "debug": true,
+    "vad_onset": 0.5,
+    "batch_size": 32,
+    "vad_offset": 0.363,
+    "diarization": false,
+    "temperature": 0.2,
+    "align_output": true,
+    "language_detection_min_prob": 0.7,
+    "language_detection_max_tries": 5
+  }
+}
+
