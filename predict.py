@@ -346,7 +346,9 @@ class Predictor(BasePredictor):
                         self.download_single_file(session, urls[i+1], i+1)
                     )
 
-                actual_duration = get_audio_duration(file_path) / 1000.0
+                # Use provided chunk_duration parameter instead of probing file metadata
+                # (FLAC metadata can be unreliable for split files)
+                actual_duration = chunk_duration
 
                 result = await asyncio.to_thread(
                     self.process_single_chunk,
