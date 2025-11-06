@@ -1,9 +1,10 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Optimized for CUDA 12.6/PyTorch 2.8.0 and serverless deployment
+# Optimized for CUDA 12.1/PyTorch 2.1.2 and serverless deployment
+# Using older PyTorch for pyannote.audio 2.1.1 compatibility (VAD support)
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.6 (latest with official cuDNN support)
-FROM --platform=linux/amd64 nvidia/cuda:12.6.0-cudnn-runtime-ubuntu24.04
+# Using CUDA 12.1 (compatible with PyTorch 2.1.2)
+FROM --platform=linux/amd64 nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -15,8 +16,8 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
+    python3.10 \
+    python3.10-dev \
     python3-pip \
     ffmpeg \
     git \
@@ -26,8 +27,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symbolic links for python
-RUN ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python
 
 # Upgrade pip
 RUN python3 -m pip install --upgrade pip setuptools wheel
@@ -35,15 +36,21 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch 2.8.0 (latest stable)
-# Works with CUDA 12.x (12.1 through 12.8)
+# Install PyTorch 2.1.2 (compatible with pyannote.audio 2.1.1 for VAD)
+# CUDA 12.1 support
 RUN pip install --no-cache-dir \
-    torch==2.8.0 \
-    torchvision==0.23.0 \
-    torchaudio==2.8.0
+    torch==2.1.2 \
+    torchvision==0.16.2 \
+    torchaudio==2.1.2 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install pyannote.audio 2.1.1 BEFORE WhisperX to ensure compatibility
+RUN pip install --no-cache-dir \
+    pyannote.audio==2.1.1 \
+    pyannote.pipeline==2.1.1 \
+    pyannote.core==5.0.0
 
 # Install remaining Python dependencies
-# Install in stages to handle dependency conflicts
 RUN pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
 
 # Install RunPod SDK
@@ -52,17 +59,17 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX v3.7.4 (latest - requires PyTorch 2.8.0)
-RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git@v3.7.4
+# Install WhisperX from main branch (compatible with torch 2.1.x)
+RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
-# Ensure torch versions are locked after all installs (prevent upgrades from other packages)
+# Ensure torch and pyannote versions stay locked
 RUN pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.8.0 \
-    torchvision==0.23.0 \
-    torchaudio==2.8.0
+    torch==2.1.2 \
+    torchvision==0.16.2 \
+    torchaudio==2.1.2
 
-# Verify torch versions
-RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import torchvision; print(f'TorchVision: {torchvision.__version__}')"
+# Verify versions
+RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"
 
 # Copy application code
 COPY . .
