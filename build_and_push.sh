@@ -4,8 +4,8 @@ set -e
 # WhisperX RunPod Docker Build and Push Script
 # Version: 0.6
 
-VERSION="0.6"
-IMAGE_NAME="romanfurman6/whisperx-replicate"
+VERSION="v0.6"
+IMAGE_NAME="romanfurman/whisperx-runpod-serverless"
 
 echo "=========================================="
 echo "Building WhisperX RunPod Docker Image"
