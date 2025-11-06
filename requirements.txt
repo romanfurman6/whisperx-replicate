@@ -11,7 +11,7 @@ git+https://github.com/m-bain/whisperX.git
 
 # Pin pyannote versions for VAD compatibility (old checkpoint needs 2.x)
 pyannote.audio==2.1.1
-pyannote.pipeline==2.1.1
+pyannote.pipeline==2.3
 pyannote.core==5.0.0
 
 # WhisperX core dependencies

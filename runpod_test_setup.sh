@@ -48,7 +48,7 @@ echo ""
 echo "Installing pyannote.audio 2.1.1 (VAD-compatible)..."
 pip install --no-cache-dir \
     pyannote.audio==2.1.1 \
-    pyannote.pipeline==2.1.1 \
+    pyannote.pipeline==2.3 \
     pyannote.core==5.0.0
 
 # Install dependencies
