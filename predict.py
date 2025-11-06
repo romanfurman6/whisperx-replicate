@@ -410,12 +410,11 @@ class Predictor(BasePredictor):
             "initial_prompt": initial_prompt
         }
         
-        vad_options = {
-            "vad_onset": vad_onset,
-            "vad_offset": vad_offset
-        }
-        
-        # VAD model is pre-downloaded during setup to prevent runtime crashes
+        # Disable VAD to avoid segfault with incompatible pyannote 3.4.0/torch 2.8.0
+        # The old VAD checkpoint requires pyannote 0.0.1/torch 1.10 which are incompatible
+        vad_options = None
+        if debug:
+            print("  ⚠ VAD disabled (incompatible with current torch/pyannote versions)")
         
         for attempt in range(max_retries):
             try:
