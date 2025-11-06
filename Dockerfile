@@ -47,8 +47,7 @@ RUN pip install --no-cache-dir \
 # Install pyannote.audio 2.1.1 BEFORE WhisperX to ensure compatibility
 RUN pip install --no-cache-dir \
     pyannote.audio==2.1.1 \
-    pyannote.pipeline==2.3 \
-    pyannote.core==5.0.0
+    pyannote.pipeline==2.3
 
 # Install remaining Python dependencies
 RUN pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
