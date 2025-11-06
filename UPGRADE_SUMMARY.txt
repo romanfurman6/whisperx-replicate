@@ -7,7 +7,7 @@ What Was Changed:
 1. Dockerfile:
    - Base image: nvidia/cuda:12.1.0 → nvidia/cuda:12.6.0-cudnn-runtime-ubuntu24.04
    - PyTorch: 2.5.1+cu121 → 2.8.0
-   - TorchVision: 0.20.1+cu121 → 0.24.0
+   - TorchVision: 0.20.1+cu121 → 0.23.0 (compatible with PyTorch 2.8.0)
    - TorchAudio: 2.5.1+cu121 → 2.8.0
    - WhisperX: v3.7.3 → v3.7.4 (latest)
    - Ubuntu: 22.04 → 24.04

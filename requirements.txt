@@ -3,7 +3,7 @@
 
 # Core PyTorch stack - installed in Dockerfile
 # torch==2.8.0
-# torchvision==0.24.0
+# torchvision==0.23.0
 # torchaudio==2.8.0
 
 # WhisperX - v3.7.4 (latest, requires PyTorch 2.8.0)

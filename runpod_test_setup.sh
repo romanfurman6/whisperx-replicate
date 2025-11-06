@@ -33,7 +33,7 @@ echo ""
 echo "Installing PyTorch 2.8.0 (latest)..."
 pip install --no-cache-dir \
     torch==2.8.0 \
-    torchvision==0.24.0 \
+    torchvision==0.23.0 \
     torchaudio==2.8.0
 
 # Install dependencies
@@ -53,7 +53,7 @@ echo ""
 echo "Locking PyTorch versions..."
 pip install --no-cache-dir --force-reinstall --no-deps \
     torch==2.8.0 \
-    torchvision==0.24.0 \
+    torchvision==0.23.0 \
     torchaudio==2.8.0
 
 # Verify installations

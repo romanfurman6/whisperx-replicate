@@ -39,7 +39,7 @@ COPY requirements.txt .
 # Works with CUDA 12.x (12.1 through 12.8)
 RUN pip install --no-cache-dir \
     torch==2.8.0 \
-    torchvision==0.24.0 \
+    torchvision==0.23.0 \
     torchaudio==2.8.0
 
 # Install remaining Python dependencies
@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git@v3.7.4
 # Ensure torch versions are locked after all installs (prevent upgrades from other packages)
 RUN pip install --no-cache-dir --force-reinstall --no-deps \
     torch==2.8.0 \
-    torchvision==0.24.0 \
+    torchvision==0.23.0 \
     torchaudio==2.8.0
 
 # Verify torch versions

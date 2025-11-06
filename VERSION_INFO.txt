@@ -3,7 +3,7 @@ WhisperX RunPod Serverless - Version Information
 
 Current Configuration (Updated):
 - PyTorch: 2.8.0
-- TorchVision: 0.24.0
+- TorchVision: 0.23.0 (correct for PyTorch 2.8.0)
 - TorchAudio: 2.8.0
 - WhisperX: v3.7.4 (latest)
 - CUDA: 12.6+ compatible (works with 12.1-12.8)
