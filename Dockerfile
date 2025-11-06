@@ -52,11 +52,8 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX and pyannote (stable compatible versions)
-RUN pip install --no-cache-dir \
-    git+https://github.com/m-bain/whisperX.git@v3.1.1 \
-    pyannote.audio==3.1.1 \
-    speechbrain==0.5.16
+# Install WhisperX and pyannote (compatible with torch 2.2)
+RUN pip install --no-cache-dir whisperx==3.1.5 pyannote.audio==3.1.1 speechbrain==0.5.16
 
 # Ensure torch versions stay locked
 RUN pip install --no-cache-dir --force-reinstall --no-deps \

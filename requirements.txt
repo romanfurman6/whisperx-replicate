@@ -7,8 +7,8 @@
 torch==2.2.0+cu121
 torchaudio==2.2.0+cu121
 
-# WhisperX and pyannote (stable compatible versions)
-git+https://github.com/m-bain/whisperX.git@v3.1.1
+# WhisperX and pyannote (compatible with torch 2.2)
+whisperx==3.1.5
 pyannote.audio==3.1.1
 speechbrain==0.5.16
 
