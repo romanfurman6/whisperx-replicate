@@ -410,6 +410,11 @@ class Predictor(BasePredictor):
             "initial_prompt": initial_prompt
         }
         
+        vad_options = {
+            "vad_onset": vad_onset,
+            "vad_offset": vad_offset
+        }
+        
         # Use Silero VAD instead of Pyannote VAD (Silero is compatible with modern torch/pyannote)
         # Pyannote's old VAD checkpoint requires pyannote 0.0.1/torch 1.10 which causes segfaults
         if debug:
