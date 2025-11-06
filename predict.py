@@ -388,7 +388,8 @@ class Predictor(BasePredictor):
                         print("  Loading WhisperX model...")
                     self._asr_model_cached = self._load_model_with_retry(None, temperature, initial_prompt, vad_onset, vad_offset, debug)
                 
-                result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size))
+                # Disable VAD in transcription to avoid segfault
+                result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size), vad_filter=False)
                 detected_language = result.get("language", "en")
                 
                 if debug:
@@ -537,7 +538,8 @@ class Predictor(BasePredictor):
         """Transcribe audio with retry logic."""
         for attempt in range(max_retries):
             try:
-                return self._asr_model_cached.transcribe(audio, batch_size=batch_size)
+                # Disable VAD in transcription to avoid segfault
+                return self._asr_model_cached.transcribe(audio, batch_size=batch_size, vad_filter=False)
             except RuntimeError as e:
                 if "CUDA" in str(e) or "out of memory" in str(e):
                     if debug:
