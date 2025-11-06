@@ -1,23 +1,14 @@
 # WhisperX RunPod Serverless Requirements
-# Using PyTorch 2.2.0 for compatibility with pyannote.audio 2.1.1
+# Using working configuration from commit e247b26
 
 # Core PyTorch stack - installed in Dockerfile
-# torch==2.2.0
-# torchvision==0.17.0
-# torchaudio==2.2.0
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+torchaudio==2.5.1+cu121
 
-# WhisperX - using main branch compatible with torch 2.1.x
+# WhisperX - will auto-resolve pyannote dependencies
 git+https://github.com/m-bain/whisperX.git
-
-# Pin pyannote versions for VAD compatibility (old checkpoint needs 2.x)
-# pyannote.audio 2.1.1 will auto-install compatible pyannote.core (<5.0)
-pyannote.audio==2.1.1
-pyannote.pipeline==2.3
-
-# WhisperX core dependencies
-# ctranslate2>=3.20.0
-# faster-whisper>=0.9.0
-# transformers>=4.30.0
 
 # Audio processing
 ffmpeg-python==0.2.0

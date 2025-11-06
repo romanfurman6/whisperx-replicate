@@ -3,8 +3,7 @@ set -e
 
 echo "=========================================="
 echo "WhisperX RunPod Test Setup"
-echo "PyTorch 2.2.0 + pyannote.audio 2.1.1"
-echo "VAD-compatible configuration"
+echo "PyTorch 2.5.1 (working configuration)"
 echo "=========================================="
 
 # Update system
@@ -34,21 +33,14 @@ echo ""
 echo "Removing conflicting packages..."
 pip uninstall -y torch torchvision torchaudio pyannote-audio pyannote-pipeline pyannote-core whisperx 2>/dev/null || true
 
-# Install PyTorch 2.2.0 (compatible with pyannote.audio 2.1.1 for VAD)
+# Install PyTorch 2.5.1 (matches working configuration)
 echo ""
-echo "Installing PyTorch 2.2.0 (VAD-compatible)..."
+echo "Installing PyTorch 2.5.1..."
 pip install --no-cache-dir \
-    torch==2.2.0 \
-    torchvision==0.17.0 \
-    torchaudio==2.2.0 \
-    --index-url https://download.pytorch.org/whl/cu121
-
-# Install pyannote.audio 2.1.1 BEFORE WhisperX
-echo ""
-echo "Installing pyannote.audio 2.1.1 (VAD-compatible)..."
-pip install --no-cache-dir \
-    pyannote.audio==2.1.1 \
-    pyannote.pipeline==2.3
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Install dependencies
 echo ""
@@ -62,14 +54,14 @@ echo ""
 echo "Installing WhisperX (main branch)..."
 pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
-# Re-lock PyTorch and pyannote versions
+# Re-lock PyTorch versions
 echo ""
-echo "Locking PyTorch and pyannote versions..."
+echo "Locking PyTorch versions..."
 pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.2.0 \
-    torchvision==0.17.0 \
-    torchaudio==2.2.0 \
-    --index-url https://download.pytorch.org/whl/cu121
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Verify installations
 echo ""
@@ -96,12 +88,9 @@ echo "✓ Setup complete!"
 echo "=========================================="
 echo ""
 echo "Configuration:"
-echo "  - PyTorch: 2.2.0"
-echo "  - pyannote.audio: 2.1.1 (VAD-compatible)"
-echo "  - WhisperX: main branch"
+echo "  - PyTorch: 2.5.1"
+echo "  - WhisperX: main branch (with auto-resolved dependencies)"
 echo "  - CUDA: 12.1 compatible"
-echo ""
-echo "VAD (Voice Activity Detection) is now enabled!"
 echo ""
 echo "To test, run:"
 echo "  python3 predict.py"

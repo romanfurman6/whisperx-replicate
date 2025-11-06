@@ -1,9 +1,9 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Optimized for CUDA 12.1/PyTorch 2.2.0 and serverless deployment
-# Using PyTorch 2.2.0 for pyannote.audio 2.1.1 compatibility (VAD support)
+# Optimized for CUDA 12.1/PyTorch 2.5.1 and serverless deployment
+# Using working configuration from commit e247b26
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.1 (compatible with PyTorch 2.1.2)
+# Using CUDA 12.1 (compatible with PyTorch 2.5.1)
 FROM --platform=linux/amd64 nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts
@@ -36,18 +36,13 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch 2.2.0 (compatible with pyannote.audio 2.1.1 for VAD)
+# Install PyTorch 2.5.1 (working configuration)
 # CUDA 12.1 support
 RUN pip install --no-cache-dir \
-    torch==2.2.0 \
-    torchvision==0.17.0 \
-    torchaudio==2.2.0 \
-    --index-url https://download.pytorch.org/whl/cu121
-
-# Install pyannote.audio 2.1.1 BEFORE WhisperX to ensure compatibility
-RUN pip install --no-cache-dir \
-    pyannote.audio==2.1.1 \
-    pyannote.pipeline==2.3
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Install remaining Python dependencies
 RUN pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
@@ -58,14 +53,14 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX from main branch (compatible with torch 2.1.x)
+# Install WhisperX from main branch (will auto-resolve pyannote dependencies)
 RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
-# Ensure torch and pyannote versions stay locked
+# Ensure torch versions stay locked
 RUN pip install --no-cache-dir --force-reinstall --no-deps \
-    torch==2.2.0 \
-    torchvision==0.17.0 \
-    torchaudio==2.2.0
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1
 
 # Verify versions
 RUN python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); import torchaudio; print(f'TorchAudio: {torchaudio.__version__}'); import pyannote.audio; print(f'pyannote.audio: {pyannote.audio.__version__}')"
