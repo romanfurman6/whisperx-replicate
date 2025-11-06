@@ -589,10 +589,23 @@ class Predictor(BasePredictor):
 def get_audio_duration(file_path):
     """Get audio duration in seconds."""
     probe = ffmpeg.probe(str(file_path))
+    
+    # Try to get duration from format first (more reliable)
+    if 'format' in probe and 'duration' in probe['format']:
+        duration = float(probe['format']['duration'])
+        print(f"  Audio duration (format): {duration:.2f}s for {file_path}")
+        return duration
+    
+    # Fall back to stream duration
     stream = next((s for s in probe['streams'] if s['codec_type'] == 'audio'), None)
     if stream is None:
         raise ValueError(f"No audio stream found in {file_path}")
+    
+    if 'duration' not in stream:
+        raise ValueError(f"No duration found in audio stream for {file_path}")
+    
     duration = float(stream['duration'])
+    print(f"  Audio duration (stream): {duration:.2f}s for {file_path}")
     return duration
 
 

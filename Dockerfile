@@ -1,8 +1,8 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Version: 0.8
+# Version: 0.9
 # Using official WhisperX with Silero VAD (compatible with modern torch/pyannote)
 # Fixed: Using CuDNN 9 for compatibility with PyTorch 2.5+
-# Fixed: Timestamp offset calculation (get_audio_duration now returns seconds)
+# Fixed: Timestamp offset calculation with better logging
 
 # Force AMD64 architecture for RunPod compatibility
 # Using CUDA 12.3.2 with CuDNN 9
