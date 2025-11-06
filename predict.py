@@ -410,11 +410,10 @@ class Predictor(BasePredictor):
             "initial_prompt": initial_prompt
         }
         
-        # Disable VAD to avoid segfault with incompatible pyannote 3.4.0/torch 2.8.0
-        # The old VAD checkpoint requires pyannote 0.0.1/torch 1.10 which are incompatible
-        vad_options = None
+        # Use Silero VAD instead of Pyannote VAD (Silero is compatible with modern torch/pyannote)
+        # Pyannote's old VAD checkpoint requires pyannote 0.0.1/torch 1.10 which causes segfaults
         if debug:
-            print("  ⚠ VAD disabled (incompatible with current torch/pyannote versions)")
+            print("  ℹ Using Silero VAD (Pyannote VAD incompatible with torch 2.8+)")
         
         for attempt in range(max_retries):
             try:
@@ -426,13 +425,14 @@ class Predictor(BasePredictor):
                 if debug and attempt > 0:
                     print(f"  Retry attempt {attempt + 1}/{max_retries} to load model...")
                 
+                # Use Silero VAD instead of Pyannote (Silero is compatible with modern torch/pyannote)
                 model = whisperx.load_model(
                     whisper_arch,
                     device,
                     compute_type=compute_type,
                     language=language,
                     asr_options=asr_options,
-                    vad_model=None,  # Explicitly disable VAD model
+                    vad_method="silero",  # Use Silero VAD instead of Pyannote
                     vad_options=vad_options
                 )
                 
