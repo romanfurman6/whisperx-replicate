@@ -1,32 +1,80 @@
 #!/bin/bash
 
-set -e
+# WhisperX RunPod Build Script
+# Quick build without deployment
 
-download() {
-  local file_url="$1"
-  local destination_path="$2"
+set -e  # Exit on any error
 
-  if [ ! -e "$destination_path" ]; then
-    wget -O "$destination_path" "$file_url"
-  else
-      echo "$destination_path already exists. No need to download."
-  fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
 }
 
-faster_whisper_model_dir=models/faster-whisper-large-v3
-mkdir -p $faster_whisper_model_dir
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
 
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/config.json" "$faster_whisper_model_dir/config.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/model.bin" "$faster_whisper_model_dir/model.bin"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/tokenizer.json" "$faster_whisper_model_dir/tokenizer.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vocabulary.json" "$faster_whisper_model_dir/vocabulary.json"
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
 
-pip install -U git+https://github.com/m-bain/whisperx.git
+echo "=========================================="
+echo "  WhisperX RunPod - Quick Build"
+echo "=========================================="
+echo ""
 
-vad_model_dir=models/vad
-mkdir -p $vad_model_dir
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    print_error "Docker is not installed. Please install Docker first."
+    exit 1
+fi
 
-download $(python3 ./get_vad_model_url.py) "$vad_model_dir/whisperx-vad-segmentation.bin"
+print_status "Docker is installed ✓"
 
-cog run python
+# Check if Docker daemon is running
+if ! docker info &> /dev/null; then
+    print_error "Docker daemon is not running. Please start Docker."
+    exit 1
+fi
+
+print_status "Docker daemon is running ✓"
+
+# Default image name
+IMAGE_NAME="whisperx-runpod-serverless:latest"
+
+print_status "Building Docker image for linux/amd64: ${IMAGE_NAME}"
+echo ""
+
+# Build the image for AMD64 (RunPod compatibility)
+if docker build --platform linux/amd64 -t "${IMAGE_NAME}" .; then
+    echo ""
+    print_status "✓ Build completed successfully!"
+    echo ""
+    
+    # Get image size
+    IMAGE_SIZE=$(docker images "${IMAGE_NAME}" --format "{{.Size}}")
+    print_status "Image size: ${IMAGE_SIZE}"
+    echo ""
+    
+    echo "=========================================="
+    echo "  Next Steps"
+    echo "=========================================="
+    echo ""
+    echo "1. To deploy to Docker Hub:"
+    echo "   ./deploy.sh"
+    echo ""
+    echo "2. To test locally (requires GPU):"
+    echo "   docker run --rm --gpus all ${IMAGE_NAME} \\"
+    echo "     python3 -c \"import torch; print('CUDA:', torch.cuda.is_available())\""
+    echo ""
+    echo "3. See DEPLOYMENT.md for full instructions"
+    echo ""
+else
+    print_error "Build failed!"
+    exit 1
+fi

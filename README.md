@@ -1,10 +1,26 @@
-# whisperX on Replicate
+# WhisperX Multi-Chunk for RunPod Serverless
 
-This repo is the codebase behind the following Replicate models, which we use at [Upmeet](https://upmeet.ai):
+High-performance automatic speech recognition (ASR) optimized for RunPod serverless infrastructure. Processes large audio/video files by splitting them into manageable chunks with automatic timestamp alignment.
 
-- [victor-upmeet/whisperx](https://replicate.com/victor-upmeet/whisperx) : if you don't know which model to use, use this one. It uses a low-cost hardware, which suits most cases
-- [victor-upmeet/whisperx-a40-large](https://replicate.com/victor-upmeet/whisperx-a40-large) : if you encounter some memory issues with previous models, consider this one. It can happen when dealing with long audio files and performing alignment and/or diarization
-- [victor-upmeet/whisperx-a100-80gb](https://replicate.com/victor-upmeet/whisperx-a100-80gb) : if you encounter some memory issues with previous models, consider this one. It can happen when dealing with long audio files and performing alignment and/or diarization
+## 🚀 Quick Deploy
+
+> **⚠️ Important for M1/M2/M3 Mac users:** The image is automatically built for AMD64 (RunPod compatible). No action needed!
+
+```bash
+# 1. Build and deploy (automatically builds for AMD64)
+./deploy.sh
+
+# 2. Configure on RunPod
+# See QUICKSTART.md for step-by-step instructions
+```
+
+## ✨ Key Improvements
+
+- ✅ **Fixed CUDA Errors**: Automatic recovery from "CUDA failed with error unknown error"
+- ✅ **Memory Management**: Intelligent cache clearing and model reloading
+- ✅ **Retry Logic**: Automatic retries with exponential backoff
+- ✅ **Better Logging**: Comprehensive debug information
+- ✅ **RunPod Optimized**: Built specifically for serverless deployment
 
 # Model Information
 
@@ -57,9 +73,46 @@ result = predictor.predict(
 
 The output includes merged segments with correct timestamps, total processing time, and chunk count information.
 
+## 📚 Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Deploy in 5 minutes
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
+
+## 🔧 Development
+
+```bash
+# Build locally
+./build.sh
+
+# Test locally (requires GPU)
+python3 test_local.py
+
+# Deploy to Docker Hub
+./deploy.sh
+```
+
+## 🐛 Troubleshooting
+
+### CUDA Errors (Fixed!)
+
+The code now automatically handles:
+- CUDA initialization failures
+- Out of memory errors
+- Model loading issues
+- Cache management
+
+### Still Having Issues?
+
+See [DEPLOYMENT.md](DEPLOYMENT.md#troubleshooting) for detailed solutions.
+
+## 📄 License
+
+This project is open source. See LICENSE file for details.
+
 # Citation
 
-```
+```bibtex
 @misc{bain2023whisperx,
       title={WhisperX: Time-Accurate Speech Transcription of Long-Form Audio}, 
       author={Max Bain and Jaesung Huh and Tengda Han and Andrew Zisserman},
@@ -69,3 +122,9 @@ The output includes merged segments with correct timestamps, total processing ti
       primaryClass={cs.SD}
 }
 ```
+
+## 🙏 Acknowledgments
+
+- **WhisperX**: [m-bain/whisperX](https://github.com/m-bain/whisperX)
+- **RunPod**: Serverless GPU infrastructure
+- **OpenAI**: Original Whisper model
