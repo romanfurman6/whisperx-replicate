@@ -48,11 +48,11 @@ pip install --no-cache-dir ffmpeg-python==0.2.0 requests aiohttp aiofiles
 pip install --no-cache-dir runpod
 pip install --no-cache-dir cog
 
-# Install WhisperX and pyannote (exact versions from working whisperx-worker repo)
+# Install WhisperX and pyannote (stable compatible versions)
 echo ""
-echo "Installing WhisperX (commit 8f00339) and pyannote.audio 3.1.1..."
+echo "Installing WhisperX v3.1.1 and pyannote.audio 3.1.1..."
 pip install --no-cache-dir \
-    git+https://github.com/m-bain/whisperX.git@8f00339af7dcc9705ef40d97a1f40764b7cf555f \
+    git+https://github.com/m-bain/whisperX.git@v3.1.1 \
     pyannote.audio==3.1.1 \
     speechbrain==0.5.16
 
@@ -91,7 +91,7 @@ echo ""
 echo "Configuration:"
 echo "  - PyTorch: 2.2.0+cu121"
 echo "  - pyannote.audio: 3.1.1"
-echo "  - WhisperX: commit 8f00339 (verified working)"
+echo "  - WhisperX: v3.1.1 (stable release)"
 echo "  - CUDA: 12.1 compatible"
 echo ""
 echo "To test, run:"

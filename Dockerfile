@@ -52,9 +52,9 @@ RUN pip install --no-cache-dir runpod>=1.6.0
 # Install cog
 RUN pip install --no-cache-dir cog>=0.9.0
 
-# Install WhisperX and pyannote (exact versions from whisperx-worker)
+# Install WhisperX and pyannote (stable compatible versions)
 RUN pip install --no-cache-dir \
-    git+https://github.com/m-bain/whisperX.git@8f00339af7dcc9705ef40d97a1f40764b7cf555f \
+    git+https://github.com/m-bain/whisperX.git@v3.1.1 \
     pyannote.audio==3.1.1 \
     speechbrain==0.5.16
 
