@@ -34,16 +34,22 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install PyTorch with CUDA 12.1 support
-# Using latest available version from CUDA 12.1 wheel repository
+# Install PyTorch with CUDA 12.1 support first
+# Use compatible versions: torch 2.1.0 is stable with CUDA 12.1
 RUN pip install --no-cache-dir \
-    torch \
-    torchvision \
-    torchaudio \
+    torch==2.1.0+cu121 \
+    torchvision==0.16.0+cu121 \
+    torchaudio==2.1.0+cu121 \
     --index-url https://download.pytorch.org/whl/cu121
 
 # Install remaining Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Use --no-deps for torch packages to prevent version conflicts
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --force-reinstall --no-deps \
+    torch==2.1.0+cu121 \
+    torchvision==0.16.0+cu121 \
+    torchaudio==2.1.0+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
 
 # Copy application code
 COPY . .

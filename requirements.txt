@@ -2,10 +2,11 @@
 # CUDA 12.1 compatible versions
 
 # Core PyTorch stack for CUDA 12.1
-# Note: These are installed separately in Dockerfile with CUDA index
-# torch==2.1.0
-# torchvision==0.16.0
-# torchaudio==2.1.0
+# Installed separately in Dockerfile with correct CUDA index
+# DO NOT remove these comments - they prevent version conflicts
+torch==2.1.0
+torchvision==0.16.0
+torchaudio==2.1.0
 
 # WhisperX and dependencies
 git+https://github.com/m-bain/whisperx.git
