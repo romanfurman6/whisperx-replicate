@@ -70,7 +70,6 @@ if python3 -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>/dev
     python3 -c "import torch; print(f'✓ GPU count: {torch.cuda.device_count()}')"
 fi
 python3 -c "import torchaudio; print(f'✓ TorchAudio: {torchaudio.__version__}')"
-python3 -c "import torchvision; print(f'✓ TorchVision: {torchvision.__version__}')"
 python3 -c "import pyannote.audio; print(f'✓ pyannote.audio: {pyannote.audio.__version__}')"
 python3 -c "import whisperx; print('✓ WhisperX: OK')"
 python3 -c "import cog; print(f'✓ Cog: {cog.__version__}')"

@@ -1,5 +1,5 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Version: 1.8
+# Version: 1.9
 # Removed Cog dependency - using pure RunPod handler pattern
 # Pre-downloading WhisperX large-v3 model to reduce cold start time
 # Using RunPod official base image with CUDA 12.6.2
@@ -45,15 +45,16 @@ RUN python3 -m pip install --no-cache-dir git+https://github.com/m-bain/whisperX
 # Verify installations and check cuDNN version
 RUN python3 -c "import sys; print(f'Python: {sys.version}'); import torch; print(f'✓ PyTorch: {torch.__version__}'); print(f'✓ CUDA available: {torch.cuda.is_available()}'); print(f'✓ cuDNN version: {torch.backends.cudnn.version()}'); import whisperx; print('✓ WhisperX: OK')"
 
-# Pre-download WhisperX models to reduce cold start time
-COPY fetch_whisperx_models.py .
-RUN python3 fetch_whisperx_models.py && rm fetch_whisperx_models.py
+# Note: Model pre-download is disabled to prevent Docker build failures
+# Models will download on first serverless run and cache to network volume (/runpod-volume)
+# This adds ~30-60s to first cold start but enables reliable builds
+# To pre-populate: Deploy temporary instance, attach volume, download models manually
 
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /root/.cache/torch
+# Create cache directories (used if no network volume attached)
+RUN mkdir -p /root/.cache/torch /root/.cache/huggingface
 
 # Expose port for health checks
 EXPOSE 8000

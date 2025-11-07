@@ -6,6 +6,17 @@ Multi-chunk audio transcription with speaker diarization support.
 import os
 import site
 
+# Configure cache directories to use RunPod network volume (if available)
+# This enables persistent model caching across serverless invocations
+VOLUME_PATH = "/runpod-volume"
+if os.path.exists(VOLUME_PATH):
+    os.environ['HF_HOME'] = f"{VOLUME_PATH}/huggingface"
+    os.environ['TORCH_HOME'] = f"{VOLUME_PATH}/torch"
+    os.environ['XDG_CACHE_HOME'] = f"{VOLUME_PATH}/cache"
+    print(f"✓ Using network volume for model caching: {VOLUME_PATH}")
+else:
+    print("⚠ No network volume found, models will download on each cold start")
+
 # Fix cuDNN version mismatch - use WhisperX's installed cuDNN
 # This must be set before importing torch/whisperx
 # See: https://github.com/m-bain/whisperX/blob/main/docs/troubleshooting.md
