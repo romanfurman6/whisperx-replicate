@@ -5,12 +5,21 @@ Use this to test the predictor locally before building the Docker image.
 """
 
 import os
+import site
 
-# Fix cuDNN version mismatch - use WhisperX's installed cuDNN (9.10.2)
+# Fix cuDNN version mismatch - use WhisperX's installed cuDNN
 # This must be set before importing torch/whisperx
-cudnn_path = "/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib/"
-original_path = os.environ.get("LD_LIBRARY_PATH", "")
-os.environ['LD_LIBRARY_PATH'] = cudnn_path + ":" + original_path
+
+# Dynamically find the cuDNN path (works across Python 3.10, 3.11, 3.12, etc.)
+site_packages = site.getsitepackages()[0]
+cudnn_path = os.path.join(site_packages, "nvidia", "cudnn", "lib")
+
+if os.path.exists(cudnn_path):
+    original_path = os.environ.get("LD_LIBRARY_PATH", "")
+    os.environ['LD_LIBRARY_PATH'] = cudnn_path + ":" + original_path
+    print(f"✓ Using WhisperX cuDNN from: {cudnn_path}")
+else:
+    print(f"⚠ WhisperX cuDNN not found at: {cudnn_path}, using system cuDNN")
 
 import json
 import sys
