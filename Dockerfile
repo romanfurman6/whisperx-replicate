@@ -1,5 +1,5 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Version: 1.7
+# Version: 1.8
 # Removed Cog dependency - using pure RunPod handler pattern
 # Pre-downloading WhisperX large-v3 model to reduce cold start time
 # Using RunPod official base image with CUDA 12.6.2

@@ -279,21 +279,52 @@ class Predictor:
                                            language_detection_max_tries: int) -> List[ChunkResult]:
         """Download and process chunks with pipelined execution."""
         
-        # If no language specified, detect from first chunk
+        # If no language specified, detect from first NON-SILENT chunk
         if language is None:
-            print("Downloading first chunk for language detection...")
-            first_file = await self.download_single_file(
-                aiohttp.ClientSession(), urls[0], 0
-            )
-            language = self.detect_language_from_file(
-                first_file, language_detection_min_prob, language_detection_max_tries,
-                temperature, initial_prompt, vad_onset, vad_offset, batch_size, debug
-            )
-            try:
-                first_file.unlink()
-            except:
-                pass
-            print(f"✓ Detected language: {language}")
+            print("Detecting language from first audio chunk with speech...")
+            async with aiohttp.ClientSession() as detection_session:
+                max_attempts = min(5, len(urls))  # Try first 5 chunks max
+                
+                for attempt_idx in range(max_attempts):
+                    if debug:
+                        print(f"  Trying chunk {attempt_idx + 1} for language detection...")
+                    
+                    chunk_file = await self.download_single_file(detection_session, urls[attempt_idx], attempt_idx)
+                    
+                    try:
+                        # Quick transcribe to check for speech and detect language
+                        audio = whisperx.load_audio(str(chunk_file))
+                        
+                        # Load model if not cached
+                        if self._asr_model_cached is None:
+                            if debug:
+                                print("  Loading WhisperX model...")
+                            self._asr_model_cached = self._load_model_with_retry(None, temperature, initial_prompt, vad_onset, vad_offset, debug)
+                        
+                        # Transcribe with small batch for speed
+                        result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size))
+                        
+                        # Check if we found speech
+                        if result.get("segments") and len(result["segments"]) > 0:
+                            language = result.get("language", "en")
+                            print(f"✓ Detected language: {language} from chunk {attempt_idx + 1}")
+                            chunk_file.unlink()
+                            break
+                        else:
+                            if debug:
+                                print(f"  ⚠ Chunk {attempt_idx + 1} is silent, trying next...")
+                            chunk_file.unlink()
+                            
+                    except Exception as e:
+                        if debug:
+                            print(f"  ⚠ Error detecting language from chunk {attempt_idx + 1}: {e}")
+                        chunk_file.unlink()
+                        continue
+                
+                # Fallback to English if no speech found
+                if language is None:
+                    print("  ⚠ No speech found in first 5 chunks, defaulting to English")
+                    language = "en"
         
         async with aiohttp.ClientSession() as session:
             download_task = asyncio.create_task(self.download_single_file(session, urls[0], 0))
@@ -464,8 +495,11 @@ class Predictor:
                         print(f"  ⚠ Alignment not available for language: {detected_language}")
                 
                 # Diarization (with model caching for performance)
-                if diarization:
+                # Skip if no segments found (no speech detected)
+                if diarization and result.get("segments") and len(result["segments"]) > 0:
                     result = diarize(self, audio, result, debug, huggingface_access_token, min_speakers, max_speakers)
+                elif diarization and debug:
+                    print(f"  ⚠ Skipping diarization - no speech segments found")
                 
                 # Adjust timestamps
                 for segment in result["segments"]:
