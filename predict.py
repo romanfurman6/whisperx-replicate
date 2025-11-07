@@ -77,6 +77,7 @@ class Predictor:
         self._asr_model_cached = None
         self._cached_language = None
         self._setup_complete = False
+        self._diarize_model_cached = None  # Cache diarization model for reuse
 
     def setup(self):
         """Initialize the predictor with proper CUDA error handling."""
@@ -462,9 +463,9 @@ class Predictor:
                     elif debug:
                         print(f"  ⚠ Alignment not available for language: {detected_language}")
                 
-                # Diarization
+                # Diarization (with model caching for performance)
                 if diarization:
-                    result = diarize(audio, result, debug, huggingface_access_token, min_speakers, max_speakers)
+                    result = diarize(self, audio, result, debug, huggingface_access_token, min_speakers, max_speakers)
                 
                 # Adjust timestamps
                 for segment in result["segments"]:
@@ -574,20 +575,28 @@ def align(audio, result, debug):
     return result
 
 
-def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_speakers):
-    """Perform speaker diarization."""
+def diarize(predictor_instance, audio, result, debug, huggingface_access_token, min_speakers, max_speakers):
+    """Perform speaker diarization with model caching for better performance."""
     start_time = time.time()
     
-    diarize_model = DiarizationPipeline(use_auth_token=huggingface_access_token, device=device)
-    diarize_segments = diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
+    # Load diarization model only once and cache it (HUGE performance improvement!)
+    if predictor_instance._diarize_model_cached is None:
+        if debug:
+            print(f"  Loading diarization model (first time only)...")
+        predictor_instance._diarize_model_cached = DiarizationPipeline(
+            use_auth_token=huggingface_access_token, 
+            device=device
+        )
+    
+    diarize_segments = predictor_instance._diarize_model_cached(audio, min_speakers=min_speakers, max_speakers=max_speakers)
     result = whisperx.assign_word_speakers(diarize_segments, result)
     
     if debug:
         print(f"  Diarization completed in {time.time() - start_time:.2f}s")
     
+    # Clean up memory but keep the model cached
     gc.collect()
     torch.cuda.empty_cache()
-    del diarize_model
     
     return result
 
