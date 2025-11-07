@@ -30,14 +30,8 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install base dependencies
-RUN python3 -m pip install --no-cache-dir ffmpeg-python==0.2.0 requests>=2.31.0 aiohttp>=3.9.0 aiofiles>=23.2.1
-
-# Install RunPod SDK
-RUN python3 -m pip install --no-cache-dir runpod>=1.6.0
-
-# Install WhisperX directly from main repo (handles all dependencies itself)
-RUN python3 -m pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
+# Install all requirements (includes WhisperX, RunPod, hf_transfer, etc.)
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 # Note: LD_LIBRARY_PATH for cuDNN is set dynamically in predict.py at runtime
 # This ensures compatibility across different Python versions and base images
