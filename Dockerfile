@@ -44,6 +44,9 @@ RUN python3 -c "import sys; print(f'Python: {sys.version}'); import torch; print
 # This adds ~30-60s to first cold start but enables reliable builds
 # To pre-populate: Deploy temporary instance, attach volume, download models manually
 
+# Ensure cuDNN ops libraries are available before runtime
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.10/dist-packages/nvidia/cudnn/lib64:/usr/local/lib/python3.10/dist-packages/nvidia/cudnn/lib/stubs:$LD_LIBRARY_PATH
+
 # Copy application code
 COPY . .
 
