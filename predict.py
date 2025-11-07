@@ -119,19 +119,22 @@ class Predictor(BasePredictor):
 
     def _run_coro(self, coro):
         """Run async coroutine in sync context with proper event loop handling."""
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, use a new thread
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, coro)
-                    return future.result()
-            else:
+        import concurrent.futures
+        import threading
+        
+        # Always run in a new thread with its own event loop to avoid conflicts
+        def run_in_thread():
+            # Create a new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
                 return loop.run_until_complete(coro)
-        except RuntimeError:
-            # No event loop, create new one
-            return asyncio.run(coro)
+            finally:
+                loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_in_thread)
+            return future.result()
 
     def predict(
             self,

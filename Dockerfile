@@ -1,13 +1,14 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
-# Version: 1.2
+# Version: 1.3
 # Using official WhisperX with Silero VAD (compatible with modern torch/pyannote)
-# Fixed: Using CuDNN 9 for compatibility with PyTorch 2.5+
+# Fixed: Using CUDA 12.6.2 with latest CuDNN (matches PyTorch 2.5+ requirement)
 # Fixed: Use chunk_size_seconds parameter instead of unreliable FLAC metadata
 # Fixed: Correct DiarizationPipeline import from whisperx.diarize
+# Fixed: Event loop handling for RunPod serverless environment
 
 # Force AMD64 architecture for RunPod compatibility
-# Using CUDA 12.3.2 with CuDNN 9
-FROM --platform=linux/amd64 nvidia/cuda:12.3.2-cudnn9-devel-ubuntu22.04
+# Using CUDA 12.6.2 with CuDNN 9 (latest stable)
+FROM --platform=linux/amd64 nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
