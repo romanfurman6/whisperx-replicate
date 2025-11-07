@@ -21,16 +21,24 @@ else:
 # This must be set before importing torch/whisperx
 # See: https://github.com/m-bain/whisperX/blob/main/docs/troubleshooting.md
 
-# Dynamically find the cuDNN path (works across Python 3.10, 3.11, 3.12, etc.)
+# Dynamically find the cuDNN paths (works across Python 3.10, 3.11, 3.12, etc.)
 site_packages = site.getsitepackages()[0]
-cudnn_path = os.path.join(site_packages, "nvidia", "cudnn", "lib")
+cudnn_base = os.path.join(site_packages, "nvidia", "cudnn")
+candidate_dirs = [
+    os.path.join(cudnn_base, "lib"),
+    os.path.join(cudnn_base, "lib64"),
+    os.path.join(cudnn_base, "lib", "stubs"),
+]
 
-if os.path.exists(cudnn_path):
+existing_dirs = [path for path in candidate_dirs if os.path.exists(path)]
+
+if existing_dirs:
     original_path = os.environ.get("LD_LIBRARY_PATH", "")
-    os.environ['LD_LIBRARY_PATH'] = cudnn_path + ":" + original_path
-    print(f"✓ Using WhisperX cuDNN from: {cudnn_path}")
+    paths = existing_dirs + ([original_path] if original_path else [])
+    os.environ['LD_LIBRARY_PATH'] = ":".join([p for p in paths if p])
+    print(f"✓ Using WhisperX cuDNN from: {', '.join(existing_dirs)}")
 else:
-    print(f"⚠ WhisperX cuDNN not found at: {cudnn_path}, using system cuDNN")
+    print(f"⚠ WhisperX cuDNN not found under: {cudnn_base}, using system cuDNN")
 
 from typing import Any, List, Dict, Optional
 from dataclasses import dataclass
