@@ -277,13 +277,14 @@ class Predictor:
                                            huggingface_access_token: str, min_speakers: int, max_speakers: int,
                                            debug: bool, language_detection_min_prob: float,
                                            language_detection_max_tries: int) -> List[ChunkResult]:
-        """Download and process chunks with batch parallel downloads for maximum speed."""
+        """Download and process chunks with pipelined execution."""
         
         # If no language specified, detect from first chunk
         if language is None:
             print("Downloading first chunk for language detection...")
-            async with aiohttp.ClientSession() as session:
-                first_file = await self.download_single_file(session, urls[0], 0)
+            first_file = await self.download_single_file(
+                aiohttp.ClientSession(), urls[0], 0
+            )
             language = self.detect_language_from_file(
                 first_file, language_detection_min_prob, language_detection_max_tries,
                 temperature, initial_prompt, vad_onset, vad_offset, batch_size, debug
@@ -294,52 +295,38 @@ class Predictor:
                 pass
             print(f"✓ Detected language: {language}")
         
-        # Batch parallel download configuration
-        DOWNLOAD_BATCH_SIZE = 30  # Download 30 chunks at once
-        results: List[ChunkResult] = []
-        start_time_offset = 0.0
-        
         async with aiohttp.ClientSession() as session:
-            # Process in batches
-            for batch_start in range(0, len(urls), DOWNLOAD_BATCH_SIZE):
-                batch_end = min(batch_start + DOWNLOAD_BATCH_SIZE, len(urls))
-                batch_urls = urls[batch_start:batch_end]
-                
-                if debug:
-                    print(f"\n  Downloading batch {batch_start//DOWNLOAD_BATCH_SIZE + 1}: chunks {batch_start+1}-{batch_end} ({len(batch_urls)} files)...")
-                
-                # Download all chunks in this batch in parallel
-                download_tasks = [
-                    self.download_single_file(session, url, batch_start + i)
-                    for i, url in enumerate(batch_urls)
-                ]
-                downloaded_files = await asyncio.gather(*download_tasks)
-                
-                if debug:
-                    print(f"  ✓ Downloaded {len(downloaded_files)} chunks, starting processing...")
-                
-                # Process downloaded chunks sequentially
-                for i, file_path in enumerate(downloaded_files):
-                    chunk_index = batch_start + i
-                    
-                    # Use provided chunk_duration parameter
-                    actual_duration = chunk_duration
+            download_task = asyncio.create_task(self.download_single_file(session, urls[0], 0))
+            results: List[ChunkResult] = []
+            start_time_offset = 0.0
 
-                    result = await asyncio.to_thread(
-                        self.process_single_chunk,
-                        chunk_index, file_path, start_time_offset, language, batch_size,
-                        temperature, initial_prompt, vad_onset, vad_offset,
-                        align_output, diarization, huggingface_access_token,
-                        min_speakers, max_speakers, debug
+            for i, url in enumerate(urls):
+                file_path = await download_task
+                
+                if i + 1 < len(urls):
+                    download_task = asyncio.create_task(
+                        self.download_single_file(session, urls[i+1], i+1)
                     )
-                    results.append(result)
 
-                    try:
-                        file_path.unlink()
-                    except:
-                        pass
+                # Use provided chunk_duration parameter instead of probing file metadata
+                # (FLAC metadata can be unreliable for split files)
+                actual_duration = chunk_duration
 
-                    start_time_offset += actual_duration
+                result = await asyncio.to_thread(
+                    self.process_single_chunk,
+                    i, file_path, start_time_offset, language, batch_size,
+                    temperature, initial_prompt, vad_onset, vad_offset,
+                    align_output, diarization, huggingface_access_token,
+                    min_speakers, max_speakers, debug
+                )
+                results.append(result)
+
+                try:
+                    file_path.unlink()
+                except:
+                    pass
+
+                start_time_offset += actual_duration
             
             return results
 
