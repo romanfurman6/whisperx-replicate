@@ -1,109 +1,73 @@
 #!/usr/bin/env python3
 """
-Local test script for WhisperX predictor.
-Tests the predictor without RunPod infrastructure.
+Local test script for WhisperX worker without RunPod infrastructure.
+Use this to test the predictor locally before building the Docker image.
 """
 
+import json
 import sys
-import time
 from predict import Predictor
 
-def test_basic_functionality():
-    """Test basic predictor setup and simple operations."""
+def test_predictor():
+    """Test the predictor with sample input."""
+    
+    # Initialize predictor
+    print("Initializing predictor...")
+    predictor = Predictor()
+    predictor.setup()
+    
+    # Load test input (same format as test_input.json)
+    try:
+        with open('test_input.json', 'r') as f:
+            test_data = json.load(f)
+            job_input = test_data.get('input', {})
+    except FileNotFoundError:
+        print("Error: test_input.json not found. Creating sample test input...")
+        job_input = {
+            "audio_urls": [
+                "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_1.flac",
+                "https://storage.googleapis.com/meowtxt-bucket/test/chunks/fca16cb3-dbb3-4d2c-8f45-84a75354d125/fca16cb3-dbb3-4d2c-8f45-84a75354d125_chunk_2.flac"
+            ],
+            "total_duration_seconds": 60.0,
+            "chunk_size_seconds": 30.0,
+            "language": "en",
+            "debug": True,
+            "batch_size": 32,
+            "temperature": 0.2,
+            "align_output": False,
+            "diarization": False
+        }
+        
+        # Save sample input for future use
+        with open('test_input.json', 'w') as f:
+            json.dump({"input": job_input}, f, indent=2)
+        print("Created test_input.json with sample data")
+    
+    print("\nTest input:")
+    print(json.dumps(job_input, indent=2))
     print("\n" + "="*60)
-    print("Testing WhisperX Predictor - Basic Functionality")
+    print("Running prediction...")
     print("="*60 + "\n")
     
+    # Run prediction
     try:
-        # Initialize predictor
-        print("1. Initializing predictor...")
-        predictor = Predictor()
-        predictor.setup()
-        print("   ✓ Predictor initialized successfully\n")
+        result = predictor.predict(**job_input)
         
-        # Test CUDA availability
-        print("2. Checking CUDA availability...")
-        import torch
-        if torch.cuda.is_available():
-            print(f"   ✓ CUDA is available")
-            print(f"   - Device: {torch.cuda.get_device_name(0)}")
-            print(f"   - Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
-        else:
-            print("   ✗ WARNING: CUDA not available, will use CPU (very slow)")
-        print()
-        
+        print("\n" + "="*60)
+        print("Prediction completed successfully!")
         print("="*60)
-        print("✓ Basic functionality test PASSED")
-        print("="*60 + "\n")
+        print("\nResult:")
+        print(json.dumps(result, indent=2, default=str))
         
-        return True
+        return result
         
     except Exception as e:
-        print(f"\n✗ Test FAILED: {e}\n")
+        print(f"\n❌ Prediction failed: {e}")
         import traceback
         traceback.print_exc()
-        return False
-
-
-def test_with_sample_audio():
-    """Test with actual audio URLs (requires internet and audio URLs)."""
-    print("\n" + "="*60)
-    print("Testing WhisperX Predictor - Sample Audio")
-    print("="*60 + "\n")
-    
-    print("Note: This test requires valid audio URLs and may take several minutes.")
-    print("Skipping audio processing test. Use deploy.sh to test on RunPod.")
-    print()
-    
-    return True
-
-
-def main():
-    """Run all tests."""
-    print("\n" + "="*60)
-    print("WhisperX RunPod Local Test Suite")
-    print("="*60)
-    
-    tests = [
-        ("Basic Functionality", test_basic_functionality),
-        ("Sample Audio", test_with_sample_audio),
-    ]
-    
-    results = []
-    
-    for test_name, test_func in tests:
-        try:
-            result = test_func()
-            results.append((test_name, result))
-        except Exception as e:
-            print(f"\n✗ Test '{test_name}' crashed: {e}\n")
-            results.append((test_name, False))
-    
-    # Summary
-    print("\n" + "="*60)
-    print("Test Summary")
-    print("="*60)
-    
-    for test_name, result in results:
-        status = "✓ PASSED" if result else "✗ FAILED"
-        print(f"{status}: {test_name}")
-    
-    print("="*60 + "\n")
-    
-    all_passed = all(result for _, result in results)
-    
-    if all_passed:
-        print("✓ All tests passed! Ready for deployment.\n")
-        print("Next steps:")
-        print("  1. Run: ./deploy.sh")
-        print("  2. Follow the deployment instructions")
-        print("  3. See DEPLOYMENT.md for details\n")
-        return 0
-    else:
-        print("✗ Some tests failed. Please fix issues before deploying.\n")
-        return 1
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
-
+    result = test_predictor()
+    print("\n✅ Test completed successfully!")

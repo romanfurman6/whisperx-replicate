@@ -1,5 +1,10 @@
-from cog import BasePredictor, Input, BaseModel
+"""
+WhisperX RunPod Serverless Worker
+Multi-chunk audio transcription with speaker diarization support.
+"""
+
 from typing import Any, List, Dict, Optional
+from dataclasses import dataclass
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
 from whisperx.diarize import DiarizationPipeline
 
@@ -18,26 +23,6 @@ import ffmpeg
 from pathlib import Path as PathlibPath
 import urllib.parse
 import sys
-
-try:
-    from pydantic.fields import FieldInfo
-except ImportError:  # pragma: no cover - fallback for older Cog/pydantic versions
-    FieldInfo = None
-
-
-def _resolve_input_default(value):
-    """Convert Cog Input FieldInfo defaults into concrete values when invoked directly."""
-    if FieldInfo is not None and isinstance(value, FieldInfo):
-        default = getattr(value, "default", None)
-        if default is not None and default.__class__.__name__ not in {"PydanticUndefinedType", "UndefinedType"}:
-            return default
-
-        default_factory = getattr(value, "default_factory", None)
-        if callable(default_factory):
-            return default_factory()
-        return None
-
-    return value
 
 compute_type = "float16"
 device = "cuda"
@@ -59,23 +44,19 @@ def ensure_cuda_initialized():
         return False
 
 
-class ChunkResult(BaseModel):
+@dataclass
+class ChunkResult:
+    """Result from processing a single audio chunk."""
     chunk_index: int
     segments: Any
     detected_language: str
     start_time_offset: float
 
 
-class Output(BaseModel):
-    segments: Any
-    detected_language: str
-    total_chunks: int
-    processing_time: float
-
-
-class Predictor(BasePredictor):
+class Predictor:
+    """WhisperX Predictor for RunPod Serverless."""
+    
     def __init__(self):
-        super().__init__()
         self._asr_model_cached = None
         self._cached_language = None
         self._setup_complete = False
@@ -138,90 +119,49 @@ class Predictor(BasePredictor):
 
     def predict(
             self,
-            audio_urls: List[str] = Input(
-                description="Array of public audio urls to process"
-            ),
-            total_duration_seconds: float = Input(
-                description="Total duration of the complete audio in seconds"
-            ),
-            chunk_size_seconds: float = Input(
-                description="Duration of each chunk in seconds"
-            ),
-            language: Optional[str] = Input(
-                description="ISO code of the language spoken in the audio",
-                default=None
-            ),
-            language_detection_min_prob: float = Input(
-                description="Minimum probability for language detection",
-                default=0.7
-            ),
-            language_detection_max_tries: int = Input(
-                description="Maximum retries for language detection",
-                default=5
-            ),
-            initial_prompt: Optional[str] = Input(
-                description="Optional text prompt for the first window",
-                default=None
-            ),
-            batch_size: int = Input(
-                description="Parallelization of input audio transcription",
-                default=32
-            ),
-            temperature: float = Input(
-                description="Temperature to use for sampling",
-                default=0.2
-            ),
-            vad_onset: float = Input(
-                description="VAD onset threshold",
-                default=0.500
-            ),
-            vad_offset: float = Input(
-                description="VAD offset threshold",
-                default=0.363
-            ),
-            align_output: bool = Input(
-                description="Whether to align output for word-level timestamps",
-                default=False
-            ),
-            diarization: bool = Input(
-                description="Whether to perform diarization",
-                default=False
-            ),
-            huggingface_access_token: Optional[str] = Input(
-                description="HuggingFace token for diarization",
-                default=None
-            ),
-            min_speakers: Optional[int] = Input(
-                description="Minimum number of speakers if diarization is activated",
-                default=None
-            ),
-            max_speakers: Optional[int] = Input(
-                description="Maximum number of speakers if diarization is activated",
-                default=None
-            ),
-            debug: bool = Input(
-                description="Print debug information",
-                default=True
-            )
-    ) -> Output:
-        audio_urls = _resolve_input_default(audio_urls)
-        total_duration_seconds = _resolve_input_default(total_duration_seconds)
-        chunk_size_seconds = _resolve_input_default(chunk_size_seconds)
-        language = _resolve_input_default(language)
-        language_detection_min_prob = _resolve_input_default(language_detection_min_prob)
-        language_detection_max_tries = _resolve_input_default(language_detection_max_tries)
-        initial_prompt = _resolve_input_default(initial_prompt)
-        batch_size = _resolve_input_default(batch_size)
-        temperature = _resolve_input_default(temperature)
-        vad_onset = _resolve_input_default(vad_onset)
-        vad_offset = _resolve_input_default(vad_offset)
-        align_output = _resolve_input_default(align_output)
-        diarization = _resolve_input_default(diarization)
-        huggingface_access_token = _resolve_input_default(huggingface_access_token)
-        min_speakers = _resolve_input_default(min_speakers)
-        max_speakers = _resolve_input_default(max_speakers)
-        debug = _resolve_input_default(debug)
-
+            audio_urls: List[str],
+            total_duration_seconds: float,
+            chunk_size_seconds: float,
+            language: Optional[str] = None,
+            language_detection_min_prob: float = 0.7,
+            language_detection_max_tries: int = 5,
+            initial_prompt: Optional[str] = None,
+            batch_size: int = 32,
+            temperature: float = 0.2,
+            vad_onset: float = 0.500,
+            vad_offset: float = 0.363,
+            align_output: bool = False,
+            diarization: bool = False,
+            huggingface_access_token: Optional[str] = None,
+            min_speakers: Optional[int] = None,
+            max_speakers: Optional[int] = None,
+            debug: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Transcribe audio chunks with optional alignment and diarization.
+        
+        Args:
+            audio_urls: List of public audio URLs to process
+            total_duration_seconds: Total duration of the complete audio
+            chunk_size_seconds: Duration of each chunk in seconds
+            language: ISO code of the language (None for auto-detection)
+            language_detection_min_prob: Minimum probability for language detection
+            language_detection_max_tries: Maximum retries for language detection
+            initial_prompt: Optional text prompt for the first window
+            batch_size: Parallelization of input audio transcription
+            temperature: Temperature to use for sampling
+            vad_onset: VAD onset threshold
+            vad_offset: VAD offset threshold
+            align_output: Whether to align output for word-level timestamps
+            diarization: Whether to perform speaker diarization
+            huggingface_access_token: HuggingFace token for diarization models
+            min_speakers: Minimum number of speakers if diarization is activated
+            max_speakers: Maximum number of speakers if diarization is activated
+            debug: Print debug information
+            
+        Returns:
+            Dictionary containing transcription results
+        """
         start_processing_time = time.time()
         
         if not audio_urls:
@@ -265,12 +205,12 @@ class Predictor(BasePredictor):
             print(f"✓ Processing completed in {processing_time:.2f}s")
             print(f"{'='*50}\n")
         
-        return Output(
-            segments=merged["segments"],
-            detected_language=merged["language"],
-            total_chunks=len(audio_urls),
-            processing_time=processing_time
-        )
+        return {
+            "segments": merged["segments"],
+            "detected_language": merged["language"],
+            "total_chunks": len(audio_urls),
+            "processing_time": processing_time
+        }
 
     async def download_audio_files(self, urls: List[str]) -> List[PathlibPath]:
         """Download audio files asynchronously."""
@@ -638,13 +578,16 @@ def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_sp
 if __name__ == "__main__":
     import runpod
     
+    # Initialize predictor once at module level for reuse
+    predictor = Predictor()
+    predictor.setup()
+    
     def handler(job):
         """RunPod serverless handler."""
         try:
-            predictor = Predictor()
-            predictor.setup()
-            result = predictor.predict(**job["input"])
-            return result.dict()
+            job_input = job.get("input", {})
+            result = predictor.predict(**job_input)
+            return result
         except Exception as e:
             print(f"Handler error: {e}")
             import traceback
