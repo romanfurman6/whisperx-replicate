@@ -1,14 +1,15 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
 # Version: 1.4
 # Using official WhisperX with Silero VAD (compatible with modern torch/pyannote)
-# Fixed: Using RunPod's PyTorch 2.8.0 image with CUDA 12.8.1 + cuDNN 9.8 (matches PyTorch compilation)
+# Fixed: Using CUDA 12.8 + cuDNN 9 (matches PyTorch 2.8.0 requirement)
 # Fixed: Use chunk_size_seconds parameter instead of unreliable FLAC metadata
 # Fixed: Correct DiarizationPipeline import from whisperx.diarize
 # Fixed: Event loop handling for RunPod serverless environment
+# Strategy: Let WhisperX manage PyTorch 2.8.0+cu128 installation to avoid dependency conflicts
 
 # Force AMD64 architecture for RunPod compatibility
-# Using RunPod's official PyTorch 2.8.0 image with CUDA 12.8.1 + cuDNN 9.8 (optimized for serverless)
-FROM --platform=linux/amd64 runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
+# Using NVIDIA CUDA 12.8 base with cuDNN 9 - WhisperX will install PyTorch 2.8.0
+FROM --platform=linux/amd64 nvidia/cuda:12.8.0-cudnn9-devel-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -18,14 +19,21 @@ ENV CUDA_VISIBLE_DEVICES=0
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (Python 3.11 and PyTorch already included in base image)
+# Install system dependencies including Python 3.10
 RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
     ffmpeg \
     git \
     wget \
     curl \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic links for python
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python
 
 # Upgrade pip
 RUN python3 -m pip install --upgrade pip setuptools wheel
