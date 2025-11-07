@@ -15,5 +15,5 @@ aiofiles>=23.2.1
 # RunPod serverless SDK
 runpod>=1.6.0
 
-# Cog for prediction interface compatibility
-cog>=0.9.0
+# HuggingFace fast download (Rust-based parallel downloads)
+hf_transfer>=0.1.3

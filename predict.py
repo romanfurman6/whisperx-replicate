@@ -327,8 +327,7 @@ class Predictor:
                             chunk_file.unlink()
                             
                     except Exception as e:
-                        if debug:
-                            print(f"  ⚠ Error detecting language from chunk {attempt_idx + 1}: {e}")
+                        print(f"  ⚠ Error detecting language from chunk {attempt_idx + 1}: {e}")
                         chunk_file.unlink()
                         continue
                 
