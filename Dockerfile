@@ -39,6 +39,9 @@ RUN python3 -m pip install --no-cache-dir runpod>=1.6.0
 # Install WhisperX directly from main repo (handles all dependencies itself)
 RUN python3 -m pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
 
+# Set LD_LIBRARY_PATH to use WhisperX's installed cuDNN (fixes version mismatch)
+ENV LD_LIBRARY_PATH="/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
+
 # Verify installations and check cuDNN version
 RUN python3 -c "import sys; print(f'Python: {sys.version}'); import torch; print(f'✓ PyTorch: {torch.__version__}'); print(f'✓ CUDA available: {torch.cuda.is_available()}'); print(f'✓ cuDNN version: {torch.backends.cudnn.version()}'); import whisperx; print('✓ WhisperX: OK')"
 

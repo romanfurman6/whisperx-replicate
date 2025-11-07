@@ -4,6 +4,14 @@ Local test script for WhisperX worker without RunPod infrastructure.
 Use this to test the predictor locally before building the Docker image.
 """
 
+import os
+
+# Fix cuDNN version mismatch - use WhisperX's installed cuDNN (9.10.2)
+# This must be set before importing torch/whisperx
+cudnn_path = "/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib/"
+original_path = os.environ.get("LD_LIBRARY_PATH", "")
+os.environ['LD_LIBRARY_PATH'] = cudnn_path + ":" + original_path
+
 import json
 import sys
 from predict import Predictor

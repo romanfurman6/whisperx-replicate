@@ -3,6 +3,15 @@ WhisperX RunPod Serverless Worker
 Multi-chunk audio transcription with speaker diarization support.
 """
 
+import os
+
+# Fix cuDNN version mismatch - use WhisperX's installed cuDNN (9.10.2)
+# This must be set before importing torch/whisperx
+# See: https://github.com/m-bain/whisperX/blob/main/docs/troubleshooting.md
+cudnn_path = "/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib/"
+original_path = os.environ.get("LD_LIBRARY_PATH", "")
+os.environ['LD_LIBRARY_PATH'] = cudnn_path + ":" + original_path
+
 from typing import Any, List, Dict, Optional
 from dataclasses import dataclass
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
@@ -13,7 +22,6 @@ import aiohttp
 import aiofiles
 import gc
 import math
-import os
 import shutil
 import whisperx
 import tempfile

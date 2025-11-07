@@ -38,12 +38,19 @@ echo ""
 echo "Installing dependencies..."
 pip install --no-cache-dir ffmpeg-python==0.2.0 requests aiohttp aiofiles
 pip install --no-cache-dir runpod
-pip install --no-cache-dir cog
 
 # Install WhisperX directly from main repo (handles all dependencies itself)
 echo ""
 echo "Installing WhisperX from main repo..."
 pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
+
+# Set LD_LIBRARY_PATH to use WhisperX's installed cuDNN (fixes version mismatch)
+echo ""
+echo "Configuring LD_LIBRARY_PATH for WhisperX's cuDNN..."
+CUDNN_LIB_PATH="/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib"
+echo "export LD_LIBRARY_PATH=\"${CUDNN_LIB_PATH}:\${LD_LIBRARY_PATH}\"" >> ~/.bashrc
+export LD_LIBRARY_PATH="${CUDNN_LIB_PATH}:${LD_LIBRARY_PATH}"
+echo "✓ Set LD_LIBRARY_PATH=${CUDNN_LIB_PATH}"
 
 # Pre-download VAD model (prevents runtime crash)
 echo ""
