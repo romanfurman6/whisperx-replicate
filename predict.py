@@ -430,6 +430,13 @@ class Predictor:
         if language is None and debug:
             print("Language not specified, will detect from first chunk...")
         
+        # Reset cached ASR model when language needs to be detected.
+        # The previous invocation might have pinned the model to a specific language,
+        # which would bias the detector. Clearing cache ensures fresh detection.
+        if language is None:
+            self._cached_language = None
+            self._asr_model_cached = None
+        
         # Process chunks
         task_identifier = task_id or None
         if realtime and not task_identifier:
