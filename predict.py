@@ -41,7 +41,7 @@ else:
     print(f"⚠ WhisperX cuDNN not found under: {cudnn_base}, using system cuDNN")
 
 from typing import Any, List, Dict, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
 from whisperx.diarize import DiarizationPipeline
 
@@ -89,6 +89,209 @@ class ChunkResult:
     start_time_offset: float
 
 
+def sanitize_for_json(value: Any) -> Any:
+    """Convert common model outputs into JSON-serializable primitives."""
+    if value is None:
+        return None
+
+    if isinstance(value, (str, bool)):
+        return value
+
+    if isinstance(value, int):
+        return int(value)
+
+    if isinstance(value, float):
+        return value if math.isfinite(value) else 0.0
+
+    if isinstance(value, dict):
+        return {str(k): sanitize_for_json(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [sanitize_for_json(v) for v in value]
+
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8", errors="ignore")
+
+    if hasattr(value, "item"):
+        try:
+            return sanitize_for_json(value.item())
+        except Exception:
+            pass
+
+    try:
+        coerced = float(value)
+        return coerced if math.isfinite(coerced) else 0.0
+    except (TypeError, ValueError):
+        return str(value)
+
+
+@dataclass
+class SupabaseRealtimePublisher:
+    """Best-effort publisher for Supabase Realtime broadcast RPC."""
+    project_url: Optional[str]
+    service_role_key: Optional[str]
+    channel_prefix: str = "task"
+    topic_suffix: str = "updates"
+    event_update: str = "partial"
+    event_complete: str = "final"
+    event_failed: str = "error"
+    private: bool = True
+    timeout_seconds: float = 2.0
+
+    @classmethod
+    def from_env(cls) -> "SupabaseRealtimePublisher":
+        """Initialize publisher configuration from environment variables."""
+        project_url = os.getenv("SUPABASE_PROJECT_URL") or os.getenv("SUPABASE_URL")
+        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
+
+        channel_prefix = os.getenv("SUPABASE_REALTIME_CHANNEL_PREFIX", "task")
+        topic_suffix = os.getenv("SUPABASE_REALTIME_TOPIC_SUFFIX", "updates")
+        event_update = os.getenv("SUPABASE_REALTIME_EVENT_UPDATE", "partial")
+        event_complete = os.getenv("SUPABASE_REALTIME_EVENT_COMPLETE", "final")
+        event_failed = os.getenv("SUPABASE_REALTIME_EVENT_FAILED", "error")
+
+        private_raw = os.getenv("SUPABASE_REALTIME_PRIVATE", "true").lower()
+        private = private_raw not in {"0", "false", "no"}
+
+        timeout_seconds = float(os.getenv("SUPABASE_REALTIME_TIMEOUT_SECONDS", "2.0"))
+
+        return cls(
+            project_url=project_url,
+            service_role_key=service_role_key,
+            channel_prefix=channel_prefix,
+            topic_suffix=topic_suffix,
+            event_update=event_update,
+            event_complete=event_complete,
+            event_failed=event_failed,
+            private=private,
+            timeout_seconds=timeout_seconds,
+        )
+
+    @property
+    def is_enabled(self) -> bool:
+        return bool(self.project_url and self.service_role_key)
+
+    def _broadcast_endpoint(self) -> Optional[str]:
+        if not self.project_url:
+            return None
+        base = self.project_url.rstrip("/")
+        return f"{base}/rest/v1/rpc/broadcast"
+
+    def _build_topic(self, task_id: Optional[str]) -> Optional[str]:
+        if not task_id:
+            print("⚠ Supabase realtime broadcast skipped: task_id not provided")
+            return None
+        prefix = self.channel_prefix.strip(":")
+        suffix = self.topic_suffix.strip(":")
+        return f"{prefix}:{task_id}:{suffix}"
+
+    async def broadcast(self, task_id: Optional[str], event: str, payload: Dict[str, Any]) -> None:
+        """Send a broadcast payload to Supabase Realtime."""
+        if not self.is_enabled:
+            return
+
+        endpoint = self._broadcast_endpoint()
+        topic = self._build_topic(task_id)
+        if not endpoint or not topic:
+            return
+
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": self.service_role_key,
+            "Authorization": f"Bearer {self.service_role_key}",
+        }
+
+        body = {
+            "topic": topic,
+            "event": event,
+            "payload": payload,
+            "private": self.private,
+        }
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(endpoint, json=body, headers=headers) as response:
+                    if response.status >= 400:
+                        snippet = (await response.text())[:256]
+                        print(f"⚠ Supabase Realtime HTTP {response.status}: {snippet}")
+        except Exception as exc:
+            print(f"⚠ Supabase Realtime error: {exc}")
+
+
+@dataclass
+class RealtimeUpdateClient:
+    """Best-effort client for Supabase realtime transcription updates."""
+    supabase_publisher: Optional[SupabaseRealtimePublisher] = None
+    task_id: Optional[str] = None
+    min_interval_seconds: float = 0.5
+    _last_emit_monotonic: Optional[float] = field(default=None, init=False, repr=False)
+
+    @property
+    def is_enabled(self) -> bool:
+        return bool(self.supabase_publisher and self.supabase_publisher.is_enabled)
+
+    async def emit_snapshot(
+        self,
+        segments: List[Dict[str, Any]]
+    ) -> None:
+        """Send a cumulative snapshot to the Supabase realtime channel."""
+        if not self.is_enabled:
+            return
+
+        now = time.monotonic()
+        if (
+            self.min_interval_seconds > 0
+            and self._last_emit_monotonic is not None
+            and (now - self._last_emit_monotonic) < self.min_interval_seconds
+        ):
+            return
+        self._last_emit_monotonic = now
+
+        sanitized_segments = sanitize_for_json(segments)
+        supabase_payload: Dict[str, Any] = {
+            "task_id": self.task_id,
+            "segments": sanitized_segments
+        }
+
+        if sanitized_segments:
+            first_start = sanitized_segments[0].get("start")
+            last_end = sanitized_segments[-1].get("end")
+        else:
+            first_start = None
+            last_end = None
+
+        await self.supabase_publisher.broadcast(
+            task_id=self.task_id,
+            event=self.supabase_publisher.event_update,
+            payload=sanitize_for_json(supabase_payload)
+        )
+
+        print(
+            f"→ Supabase partial broadcast | task_id={self.task_id} "
+            f"| segments={len(sanitized_segments)} "
+            f"| window=({first_start}, {last_end})"
+        )
+
+    async def emit_completion(self, payload: Dict[str, Any], *, success: bool = True) -> None:
+        """Send completion/failure event to Supabase Realtime."""
+        if not self.is_enabled:
+            return
+
+        payload = {"task_id": self.task_id, **(payload or {})}
+        event = self.supabase_publisher.event_complete if success else self.supabase_publisher.event_failed
+        await self.supabase_publisher.broadcast(
+            task_id=self.task_id,
+            event=event,
+            payload=sanitize_for_json(payload)
+        )
+
+        print(
+            f"→ Supabase {'final' if success else 'error'} broadcast | "
+            f"task_id={self.task_id} | payload={payload}"
+        )
+
+
 class Predictor:
     """WhisperX Predictor for RunPod Serverless."""
     
@@ -97,6 +300,12 @@ class Predictor:
         self._cached_language = None
         self._setup_complete = False
         self._diarize_model_cached = None  # Cache diarization model for reuse
+        self._supabase_publisher = SupabaseRealtimePublisher.from_env()
+        try:
+            interval_value = float(os.getenv("SUPABASE_REALTIME_MIN_INTERVAL_SECONDS", "0.5"))
+            self._realtime_min_interval = max(0.0, interval_value)
+        except ValueError:
+            self._realtime_min_interval = 0.5
 
     def setup(self):
         """Initialize the predictor with proper CUDA error handling."""
@@ -172,7 +381,9 @@ class Predictor:
             huggingface_access_token: Optional[str] = None,
             min_speakers: Optional[int] = None,
             max_speakers: Optional[int] = None,
-            debug: bool = True
+            debug: bool = True,
+            realtime: bool = False,
+            task_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Transcribe audio chunks with optional alignment and diarization.
@@ -195,6 +406,8 @@ class Predictor:
             min_speakers: Minimum number of speakers if diarization is activated
             max_speakers: Maximum number of speakers if diarization is activated
             debug: Print debug information
+            realtime: Whether to emit realtime updates
+            task_id: Optional transcription task ID (used for Supabase broadcast topics)
             
         Returns:
             Dictionary containing transcription results
@@ -218,19 +431,37 @@ class Predictor:
             print("Language not specified, will detect from first chunk...")
         
         # Process chunks
+        task_identifier = task_id or None
+        if realtime and not task_identifier:
+            print("⚠ Realtime enabled but no task_id provided in job input; supabase broadcasts will be skipped.")
+
+        realtime_client = RealtimeUpdateClient(
+            supabase_publisher=self._supabase_publisher if (realtime and self._supabase_publisher and self._supabase_publisher.is_enabled) else None,
+            task_id=task_identifier,
+            min_interval_seconds=self._realtime_min_interval
+        )
+
         try:
             chunk_results = self._run_coro(self.download_and_process_pipeline(
                 audio_urls, language, chunk_size_seconds, batch_size,
                 temperature, initial_prompt, vad_onset, vad_offset,
                 align_output, diarization, huggingface_access_token,
                 min_speakers, max_speakers, debug, language_detection_min_prob,
-                language_detection_max_tries
+                language_detection_max_tries, realtime_client, total_duration_seconds
             ))
         except Exception as e:
             print(f"Error in processing pipeline: {e}")
             # Clear CUDA cache on error
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            if realtime_client.is_enabled:
+                failure_payload = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                self._run_coro(
+                    realtime_client.emit_completion(failure_payload, success=False)
+                )
             raise
 
         # Merge results
@@ -242,11 +473,19 @@ class Predictor:
             print(f"✓ Processing completed in {processing_time:.2f}s")
             print(f"{'='*50}\n")
         
+        if realtime_client.is_enabled:
+            completion_payload = {"status": "completed"}
+            self._run_coro(
+                realtime_client.emit_completion(completion_payload, success=True)
+            )
+
         return {
             "segments": merged["segments"],
             "detected_language": merged["language"],
             "total_chunks": len(audio_urls),
-            "processing_time": processing_time
+            "processing_time": processing_time,
+            "transcription": merged.get("text"),
+            "text": merged.get("text")
         }
 
     async def download_audio_files(self, urls: List[str]) -> List[PathlibPath]:
@@ -295,7 +534,9 @@ class Predictor:
                                            align_output: bool, diarization: bool,
                                            huggingface_access_token: str, min_speakers: int, max_speakers: int,
                                            debug: bool, language_detection_min_prob: float,
-                                           language_detection_max_tries: int) -> List[ChunkResult]:
+                                           language_detection_max_tries: int,
+                                           realtime_client: Optional[RealtimeUpdateClient],
+                                           total_duration_seconds: Optional[float]) -> List[ChunkResult]:
         """Download and process chunks with pipelined execution."""
         
         # If no language specified, detect from first NON-SILENT chunk
@@ -374,6 +615,19 @@ class Predictor:
                     file_path.unlink()
                 except:
                     pass
+
+                if realtime_client and realtime_client.is_enabled:
+                    processed_duration = start_time_offset + actual_duration
+                    progress = None
+                    if total_duration_seconds and total_duration_seconds > 0:
+                        progress = min(processed_duration / total_duration_seconds, 1.0)
+                    elif len(urls) > 0:
+                        progress = min((i + 1) / len(urls), 1.0)
+
+                    merged_state = self.merge_chunk_results(results, debug=False)
+                    await realtime_client.emit_snapshot(
+                        segments=merged_state["segments"]
+                    )
 
                 start_time_offset += actual_duration
             
@@ -585,11 +839,19 @@ class Predictor:
         
         merged_language = chunk_results[0].detected_language
         all_segments = []
+        text_parts: List[str] = []
         
         for chunk_result in chunk_results:
             all_segments.extend(chunk_result.segments)
+            for segment in chunk_result.segments:
+                text = segment.get("text")
+                if isinstance(text, str):
+                    stripped = text.strip()
+                    if stripped:
+                        text_parts.append(stripped)
         
         all_segments.sort(key=lambda x: (x["start"], x.get("chunk_index", 0)))
+        transcription_text = " ".join(text_parts) if text_parts else ""
         
         if debug:
             print(f"\n✓ Merged {len(all_segments)} segments from {len(chunk_results)} chunks")
@@ -598,7 +860,8 @@ class Predictor:
         
         return {
             "segments": all_segments,
-            "language": merged_language
+            "language": merged_language,
+            "text": transcription_text
         }
 
 
@@ -663,7 +926,8 @@ if __name__ == "__main__":
     def handler(job):
         """RunPod serverless handler."""
         try:
-            job_input = job.get("input", {})
+            job_input = dict(job.get("input", {}) or {})
+            job_input.pop("realtime_updates_url", None)
             result = predictor.predict(**job_input)
             return result
         except Exception as e:
