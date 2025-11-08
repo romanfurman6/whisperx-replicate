@@ -135,7 +135,7 @@ class SupabaseRealtimePublisher:
     event_update: str = "partial"
     event_complete: str = "final"
     event_failed: str = "error"
-    private: bool = True
+    private: bool = False
     timeout_seconds: float = 2.0
 
     @classmethod
@@ -150,8 +150,8 @@ class SupabaseRealtimePublisher:
         event_complete = os.getenv("SUPABASE_REALTIME_EVENT_COMPLETE", "final")
         event_failed = os.getenv("SUPABASE_REALTIME_EVENT_FAILED", "error")
 
-        private_raw = os.getenv("SUPABASE_REALTIME_PRIVATE", "true").lower()
-        private = private_raw not in {"0", "false", "no"}
+        private_raw = os.getenv("SUPABASE_REALTIME_PRIVATE", "false").lower()
+        private = False
 
         timeout_seconds = float(os.getenv("SUPABASE_REALTIME_TIMEOUT_SECONDS", "2.0"))
 
