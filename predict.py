@@ -694,6 +694,15 @@ class Predictor:
         if debug:
             print("  ℹ Using Silero VAD (Pyannote VAD incompatible with torch 2.8+)")
         
+        # Ensure CUDA is initialized in this thread when using GPU
+        if device == "cuda":
+            cuda_ok = ensure_cuda_initialized()
+            if not cuda_ok:
+                raise RuntimeError(
+                    "CUDA initialization failed in worker thread. "
+                    "This worker requires CUDA; CPU fallback is not supported."
+                )
+        
         for attempt in range(max_retries):
             try:
                 # Clear CUDA cache before loading
@@ -746,6 +755,14 @@ class Predictor:
         
         if debug:
             print(f"\nProcessing chunk {chunk_index + 1} (offset: {start_time_offset:.2f}s)...")
+        
+        # Initialize CUDA in this thread only once (CUDA contexts are thread-local)
+        # Keep this lightweight and idempotent to avoid overhead across chunks
+        import threading
+        thread_local = threading.local()
+        if device == "cuda" and not getattr(thread_local, "cuda_initialized", False):
+            ensure_cuda_initialized()
+            thread_local.cuda_initialized = True
         
         try:
             with torch.inference_mode():
