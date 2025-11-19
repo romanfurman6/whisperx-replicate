@@ -1,6 +1,6 @@
 # RunPod Serverless WhisperX Multi-Chunk Dockerfile
 # Removed Cog dependency - using pure RunPod handler pattern
-# Pre-downloading WhisperX large-v3 model to reduce cold start time
+# Pre-downloading deepdml/faster-whisper-large-v3-turbo-ct2 model to reduce cold start time
 # Using RunPod official base image with CUDA 12.6.2
 # Fixed: Use chunk_size_seconds parameter instead of unreliable FLAC metadata
 # Fixed: Correct DiarizationPipeline import from whisperx.diarize

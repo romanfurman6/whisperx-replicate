@@ -4,6 +4,9 @@
 # WhisperX from main repo
 git+https://github.com/m-bain/whisperX.git
 
+# Ensure faster-whisper supports the model architecture
+faster-whisper>=1.0.3
+
 # Audio processing
 ffmpeg-python==0.2.0
 

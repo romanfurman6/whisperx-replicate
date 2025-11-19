@@ -62,7 +62,7 @@ import sys
 
 compute_type = "float16"
 device = "cuda"
-whisper_arch = "large-v3"
+whisper_arch = "deepdml/faster-whisper-large-v3-turbo-ct2"
 
 
 def ensure_cuda_initialized():
@@ -490,9 +490,7 @@ class Predictor:
             "segments": merged["segments"],
             "detected_language": merged["language"],
             "total_chunks": len(audio_urls),
-            "processing_time": processing_time,
-            "transcription": merged.get("text"),
-            "text": merged.get("text")
+            "processing_time": processing_time
         }
 
     async def download_audio_files(self, urls: List[str]) -> List[PathlibPath]:
