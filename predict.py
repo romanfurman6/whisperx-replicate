@@ -298,6 +298,7 @@ class Predictor:
     def __init__(self):
         self._asr_model_cached = None
         self._cached_language = None
+        self._cached_model_key = None  # (temperature, initial_prompt, vad_onset, vad_offset)
         self._setup_complete = False
         self._diarize_model_cached = None  # Cache diarization model for reuse
         self._supabase_publisher = SupabaseRealtimePublisher.from_env()
@@ -433,9 +434,8 @@ class Predictor:
         # Reset cached ASR model when language needs to be detected.
         # The previous invocation might have pinned the model to a specific language,
         # which would bias the detector. Clearing cache ensures fresh detection.
-        if language is None:
-            self._cached_language = None
-            self._asr_model_cached = None
+        # The model is loaded without a pinned language and the language is passed per
+        # transcribe() call, so auto-detection is never biased by a previous job.
         
         # Process chunks
         task_identifier = task_id or None
@@ -560,11 +560,7 @@ class Predictor:
                         # Quick transcribe to check for speech and detect language
                         audio = whisperx.load_audio(str(chunk_file))
                         
-                        # Load model if not cached
-                        if self._asr_model_cached is None:
-                            if debug:
-                                print("  Loading WhisperX model...")
-                            self._asr_model_cached = self._load_model_with_retry(None, temperature, initial_prompt, vad_onset, vad_offset, debug)
+                        self._get_model(temperature, initial_prompt, vad_onset, vad_offset, debug)
                         
                         # Transcribe with small batch for speed
                         result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size))
@@ -654,11 +650,7 @@ class Predictor:
             with torch.inference_mode():
                 audio = whisperx.load_audio(str(audio_file))
                 
-                # Load model with error handling
-                if self._asr_model_cached is None:
-                    if debug:
-                        print("  Loading WhisperX model...")
-                    self._asr_model_cached = self._load_model_with_retry(None, temperature, initial_prompt, vad_onset, vad_offset, debug)
+                self._get_model(temperature, initial_prompt, vad_onset, vad_offset, debug)
                 
                 # VAD is already disabled via vad_options=None in model loading
                 result = self._asr_model_cached.transcribe(audio, batch_size=min(4, batch_size))
@@ -673,6 +665,25 @@ class Predictor:
             print(f"  ✗ Language detection failed: {e}")
             print("  Falling back to English")
             return "en"
+
+    def _get_model(self, temperature: float, initial_prompt: Optional[str],
+                   vad_onset: float, vad_offset: float, debug: bool):
+        """Return the cached ASR model, reloading only when its load-time options change.
+
+        The model is loaded with language=None (whisperx then resets its tokenizer after every
+        call), and the language is passed to each transcribe() call instead, so switching
+        languages between jobs doesn't reload the ~1.6 GB model.
+        """
+        key = (temperature, initial_prompt, vad_onset, vad_offset)
+        if self._asr_model_cached is None or self._cached_model_key != key:
+            if debug:
+                print("  Loading WhisperX model...")
+            self._asr_model_cached = None
+            self._asr_model_cached = self._load_model_with_retry(
+                None, temperature, initial_prompt, vad_onset, vad_offset, debug
+            )
+            self._cached_model_key = key
+        return self._asr_model_cached
 
     def _load_model_with_retry(self, language: Optional[str], temperature: float, initial_prompt: str,
                                vad_onset: float, vad_offset: float, debug: bool, max_retries: int = 3):
@@ -766,18 +777,11 @@ class Predictor:
             with torch.inference_mode():
                 audio = whisperx.load_audio(str(audio_file))
                 
-                # Load or reuse cached model
-                if self._asr_model_cached is None or self._cached_language != language:
-                    if debug:
-                        print(f"  Loading model for language: {language}")
-                    self._asr_model_cached = self._load_model_with_retry(
-                        language, temperature, initial_prompt, vad_onset, vad_offset, debug
-                    )
-                    self._cached_language = language
-                
+                self._get_model(temperature, initial_prompt, vad_onset, vad_offset, debug)
+
                 # Transcribe with retry
                 effective_batch_size = max(1, batch_size)
-                result = self._transcribe_with_retry(audio, effective_batch_size, debug)
+                result = self._transcribe_with_retry(audio, effective_batch_size, debug, language=language)
                 detected_language = result.get("language", language or "en")
                 
                 # Alignment
@@ -824,15 +828,15 @@ class Predictor:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             self._asr_model_cached = None
-            self._cached_language = None
+            self._cached_model_key = None
             raise
 
-    def _transcribe_with_retry(self, audio, batch_size: int, debug: bool, max_retries: int = 2):
+    def _transcribe_with_retry(self, audio, batch_size: int, debug: bool, max_retries: int = 2,
+                               language: Optional[str] = None):
         """Transcribe audio with retry logic."""
         for attempt in range(max_retries):
             try:
-                # VAD is already disabled via vad_options=None in model loading
-                return self._asr_model_cached.transcribe(audio, batch_size=batch_size)
+                return self._asr_model_cached.transcribe(audio, batch_size=batch_size, language=language)
             except RuntimeError as e:
                 if "CUDA" in str(e) or "out of memory" in str(e):
                     if debug:
@@ -849,6 +853,7 @@ class Predictor:
                     if attempt == max_retries - 1:
                         # Reset model cache and reload
                         self._asr_model_cached = None
+                        self._cached_model_key = None
                         raise
                 else:
                     raise
@@ -920,10 +925,12 @@ def diarize(predictor_instance, audio, result, debug, huggingface_access_token, 
     if predictor_instance._diarize_model_cached is None:
         if debug:
             print(f"  Loading diarization model (first time only)...")
-        predictor_instance._diarize_model_cached = DiarizationPipeline(
-            use_auth_token=huggingface_access_token, 
-            device=device
-        )
+        # Prefer the worker's own token (Modal secret / env) over one sent in the job input.
+        token = os.getenv("HF_TOKEN") or huggingface_access_token
+        # whisperx >= 3.7 renamed use_auth_token to token.
+        import inspect
+        token_kw = "token" if "token" in inspect.signature(DiarizationPipeline.__init__).parameters else "use_auth_token"
+        predictor_instance._diarize_model_cached = DiarizationPipeline(device=device, **{token_kw: token})
     
     diarize_segments = predictor_instance._diarize_model_cached(audio, min_speakers=min_speakers, max_speakers=max_speakers)
     result = whisperx.assign_word_speakers(diarize_segments, result)
