@@ -101,7 +101,7 @@ def sanitize_for_json(value: Any) -> Any:
         return int(value)
 
     if isinstance(value, float):
-        return value if math.isfinite(value) else 0.0
+        return float(value) if math.isfinite(value) else 0.0  # numpy.float64 is a float subclass
 
     if isinstance(value, dict):
         return {str(k): sanitize_for_json(v) for k, v in value.items()}
