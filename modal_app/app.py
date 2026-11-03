@@ -135,7 +135,14 @@ class WhisperX:
         inp = dict(inp)
         inp.pop("realtime_updates_url", None)  # same as the RunPod handler
         print(f"job {job_id}: {len(inp.get('audio_urls') or [])} chunks, task_id={inp.get('task_id')}")
-        out = self.predictor.predict(**inp)
+        try:
+            # Plain Python types only: the result is unpickled by `api`/`watch`, whose image has
+            # no numpy (alignment returns numpy floats).
+            out = self.predict.sanitize_for_json(self.predictor.predict(**inp))
+        except Exception as e:
+            # Some library errors (e.g. aiohttp ClientResponseError on a 404) don't pickle and
+            # would surface as a SerializationError instead of the real message.
+            raise RuntimeError(f"{type(e).__name__}: {e}") from None
         out["queue_seconds"] = round(started_at - submitted_at, 3)
         out["total_seconds"] = round(time.time() - started_at, 3)
         out["peak_ram_mb"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
