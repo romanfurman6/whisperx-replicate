@@ -384,7 +384,8 @@ class Predictor:
             max_speakers: Optional[int] = None,
             debug: bool = True,
             realtime: bool = False,
-            task_id: Optional[str] = None
+            task_id: Optional[str] = None,
+            max_seconds: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Transcribe audio chunks with optional alignment and diarization.
@@ -409,6 +410,9 @@ class Predictor:
             debug: Print debug information
             realtime: Whether to emit realtime updates
             task_id: Optional transcription task ID (used for Supabase broadcast topics)
+            max_seconds: Optional. Transcribe only the first N seconds of a single audio URL
+                (previews). ffmpeg reads just the start of the file over HTTP instead of
+                downloading all of it. When unset, nothing changes.
             
         Returns:
             Dictionary containing transcription results
@@ -419,6 +423,19 @@ class Predictor:
             raise ValueError("audio_urls cannot be empty")
         
         num_chunks = len(audio_urls)
+
+        # Preview mode: cut the first max_seconds of the (single) file before the normal pipeline.
+        trimmed_path: Optional[PathlibPath] = None
+        if max_seconds is not None:
+            if len(audio_urls) != 1:
+                raise ValueError("max_seconds requires exactly one audio URL")
+            max_seconds = float(max_seconds)
+            if not (0 < max_seconds <= 3600):
+                raise ValueError("max_seconds must be between 0 and 3600")
+            trimmed_path = self._trim_remote_audio(audio_urls[0], max_seconds)
+            self._local_sources = {audio_urls[0]: trimmed_path}
+            total_duration_seconds = max_seconds
+            chunk_size_seconds = max_seconds
         
         if debug:
             print(f"\n{'='*50}")
@@ -470,6 +487,10 @@ class Predictor:
                     realtime_client.emit_completion(failure_payload, success=False)
                 )
             raise
+        finally:
+            if trimmed_path is not None:
+                self._local_sources = {}
+                trimmed_path.unlink(missing_ok=True)
 
         # Merge results
         merged = self.merge_chunk_results(chunk_results, debug)
@@ -507,8 +528,49 @@ class Predictor:
         
         return downloaded_files
     
+    def _trim_remote_audio(self, url: str, max_seconds: float) -> PathlibPath:
+        """Decode the first max_seconds of url into a 16 kHz mono WAV with ffmpeg.
+
+        ffmpeg reads the URL itself and stops after max_seconds, so for most formats only the
+        start of the file is fetched (HTTP range requests). Only http(s) is allowed.
+        """
+        import subprocess
+
+        if urllib.parse.urlparse(url).scheme not in ("http", "https"):
+            raise ValueError("max_seconds requires an http(s) audio URL")
+        out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        out.close()
+        out_path = PathlibPath(out.name)
+        cmd = [
+            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+            "-protocol_whitelist", "http,https,tcp,tls,crypto",
+            "-i", url,
+            "-t", f"{max_seconds:.3f}",
+            "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
+            str(out_path),
+        ]
+        t0 = time.time()
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        except subprocess.TimeoutExpired:
+            out_path.unlink(missing_ok=True)
+            raise RuntimeError("Timed out reading the start of the audio file")
+        if proc.returncode != 0 or out_path.stat().st_size <= 44:
+            out_path.unlink(missing_ok=True)
+            raise RuntimeError(f"Could not read audio from URL: {(proc.stderr or '').strip()[-300:]}")
+        print(f"  ✓ Trimmed first {max_seconds:.0f}s in {time.time() - t0:.1f}s ({out_path.stat().st_size // 1024} KB)")
+        return out_path
+
     async def download_single_file(self, session: aiohttp.ClientSession, url: str, index: int) -> PathlibPath:
         """Download a single audio file."""
+        local = getattr(self, "_local_sources", {}).get(url)
+        if local is not None:
+            # Preview mode: the start of the file was already decoded by _trim_remote_audio.
+            # Hand out a copy, since callers delete the file they get.
+            copy = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+            copy.close()
+            shutil.copyfile(local, copy.name)
+            return PathlibPath(copy.name)
         try:
             print(f"  Downloading chunk {index + 1}: {url}")
             
