@@ -786,11 +786,19 @@ class Predictor:
                 
                 # Alignment
                 if align_output:
-                    if detected_language in whisperx.alignment.DEFAULT_ALIGN_MODELS_TORCH or \
-                       detected_language in whisperx.alignment.DEFAULT_ALIGN_MODELS_HF:
-                        result = align(audio, result, debug)
-                    elif debug:
-                        print(f"  ⚠ Alignment not available for language: {detected_language}")
+                    # Ensure result has required fields for alignment
+                    if "language" not in result:
+                        result["language"] = detected_language
+                    if "segments" not in result or not result.get("segments"):
+                        if debug:
+                            print(f"  ⚠ Skipping alignment - no segments found")
+                    else:
+                        try:
+                            result = align(audio, result, debug)
+                        except Exception as e:
+                            if debug:
+                                print(f"  ⚠ Alignment failed for language {detected_language}: {str(e)}")
+                            # Continue without alignment if it fails
                 
                 # Diarization (with model caching for performance)
                 # Skip if no segments found (no speech detected)
