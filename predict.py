@@ -60,6 +60,27 @@ from pathlib import Path as PathlibPath
 import urllib.parse
 import sys
 
+# whisperx's Silero VAD calls torch.hub.load("snakers4/silero-vad") with no branch, so torch
+# asks github.com which branch to use on EVERY load, even with the repo already cached.
+# A GitHub 5xx then crashes model load (seen on Modal 2026-11-08: HTTP 504 from GitHub).
+# Load the cached copy from disk when it exists; fall back to GitHub only on a cold cache.
+_torch_hub_load = torch.hub.load
+
+
+def _hub_load_cached_first(repo_or_dir, *args, **kwargs):
+    if repo_or_dir == "snakers4/silero-vad" and kwargs.get("source", "github") == "github":
+        local = os.path.join(torch.hub.get_dir(), "snakers4_silero-vad_master")
+        if os.path.isfile(os.path.join(local, "hubconf.py")):
+            kwargs.pop("trust_repo", None)
+            kwargs.pop("force_reload", None)
+            kwargs["source"] = "local"
+            return _torch_hub_load(local, *args, **kwargs)
+    return _torch_hub_load(repo_or_dir, *args, **kwargs)
+
+
+torch.hub.load = _hub_load_cached_first
+
+
 compute_type = "float16"
 device = "cuda"
 whisper_arch = "deepdml/faster-whisper-large-v3-turbo-ct2"
