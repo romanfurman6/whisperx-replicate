@@ -50,6 +50,7 @@ import aiohttp
 import aiofiles
 import gc
 import math
+import random
 import shutil
 import whisperx
 import tempfile
@@ -497,42 +498,83 @@ class Predictor:
         """Download audio files asynchronously."""
         downloaded_files = []
         
+        # Bounded concurrency: hammering object storage in parallel triggers 503 SlowDown.
+        semaphore = asyncio.Semaphore(4)
+
+        async def bounded(session: aiohttp.ClientSession, url: str, i: int) -> PathlibPath:
+            async with semaphore:
+                return await self.download_single_file(session, url, i)
+
         async with aiohttp.ClientSession() as session:
-            tasks = []
-            for i, url in enumerate(urls):
-                task = self.download_single_file(session, url, i)
-                tasks.append(task)
-            
-            downloaded_files = await asyncio.gather(*tasks)
+            downloaded_files = await asyncio.gather(
+                *(bounded(session, url, i) for i, url in enumerate(urls))
+            )
         
         return downloaded_files
     
-    async def download_single_file(self, session: aiohttp.ClientSession, url: str, index: int) -> PathlibPath:
-        """Download a single audio file."""
+    # Object storage (Hetzner) intermittently answers 503 SlowDown / 504 or stalls.
+    # Retry those per chunk instead of failing the whole job.
+    DOWNLOAD_MAX_ATTEMPTS = int(os.getenv("CHUNK_DOWNLOAD_MAX_ATTEMPTS", "6"))
+    DOWNLOAD_BASE_DELAY = float(os.getenv("CHUNK_DOWNLOAD_BASE_DELAY", "1.0"))
+    DOWNLOAD_MAX_DELAY = float(os.getenv("CHUNK_DOWNLOAD_MAX_DELAY", "30.0"))
+    DOWNLOAD_TIMEOUT = aiohttp.ClientTimeout(total=None, connect=15, sock_read=60)
+    RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+
+    @staticmethod
+    def _retry_after_seconds(error: Exception) -> Optional[float]:
+        headers = getattr(error, "headers", None)
+        value = headers.get("Retry-After") if headers else None
         try:
-            print(f"  Downloading chunk {index + 1}: {url}")
-            
-            parsed_url = urllib.parse.urlparse(url)
-            file_extension = PathlibPath(parsed_url.path).suffix or '.mp3'
-            
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
-            temp_path = PathlibPath(temp_file.name)
-            temp_file.close()
-            
-            async with session.get(url) as response:
-                response.raise_for_status()
-                
-                async with aiofiles.open(temp_path, 'wb') as f:
-                    async for chunk in response.content.iter_chunked(8192):
-                        await f.write(chunk)
-            
-            print(f"  ✓ Downloaded chunk {index + 1}")
-            return temp_path
-            
-        except Exception as e:
-            print(f"  ✗ Error downloading chunk {index + 1}: {e}")
-            raise
-    
+            return float(value) if value is not None else None
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _describe_download_error(error: Exception) -> str:
+        if isinstance(error, aiohttp.ClientResponseError):
+            return f"HTTP {error.status} {error.message}"
+        return f"{type(error).__name__}: {error}"
+
+    def _is_retryable_download_error(self, error: Exception) -> bool:
+        if isinstance(error, aiohttp.ClientResponseError):
+            return error.status in self.RETRYABLE_STATUSES
+        return isinstance(error, (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError))
+
+    async def download_single_file(self, session: aiohttp.ClientSession, url: str, index: int) -> PathlibPath:
+        """Download a single audio file, retrying transient storage errors with backoff + jitter."""
+        parsed_url = urllib.parse.urlparse(url)
+        file_extension = PathlibPath(parsed_url.path).suffix or '.mp3'
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
+        temp_path = PathlibPath(temp_file.name)
+        temp_file.close()
+
+        print(f"  Downloading chunk {index + 1}: {url}")
+        for attempt in range(1, self.DOWNLOAD_MAX_ATTEMPTS + 1):
+            try:
+                async with session.get(url, timeout=self.DOWNLOAD_TIMEOUT) as response:
+                    response.raise_for_status()
+                    async with aiofiles.open(temp_path, 'wb') as f:
+                        async for chunk in response.content.iter_chunked(1 << 16):
+                            await f.write(chunk)
+                if attempt > 1:
+                    print(f"  ✓ Downloaded chunk {index + 1} (attempt {attempt})")
+                else:
+                    print(f"  ✓ Downloaded chunk {index + 1}")
+                return temp_path
+            except Exception as e:
+                if attempt >= self.DOWNLOAD_MAX_ATTEMPTS or not self._is_retryable_download_error(e):
+                    print(f"  ✗ Error downloading chunk {index + 1} after {attempt} attempt(s): {self._describe_download_error(e)}")
+                    temp_path.unlink(missing_ok=True)
+                    raise
+                backoff = min(self.DOWNLOAD_MAX_DELAY, self.DOWNLOAD_BASE_DELAY * 2 ** (attempt - 1))
+                delay = random.uniform(backoff / 2, backoff)  # jitter
+                retry_after = self._retry_after_seconds(e)
+                if retry_after is not None:
+                    delay = max(delay, min(retry_after, self.DOWNLOAD_MAX_DELAY))
+                print(f"  ⚠ Chunk {index + 1} download attempt {attempt} failed ({self._describe_download_error(e)}); retrying in {delay:.1f}s")
+                await asyncio.sleep(delay)
+        raise RuntimeError("unreachable")
+
     async def download_and_process_pipeline(self, urls: List[str], language: str, chunk_duration: float,
                                            batch_size: int, temperature: float, initial_prompt: str,
                                            vad_onset: float, vad_offset: float,
